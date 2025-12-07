@@ -1,0 +1,1078 @@
+{
+  "common": {
+    "errors": {
+      "guild_only": "❌ This command can only be used in a server!",
+      "no_permission": "❌ You don't have permission to use this command!",
+      "bot_no_permission": "❌ I don't have permission to do that!",
+      "user_not_found": "❌ User not found!",
+      "role_not_found": "❌ Role not found!",
+      "channel_not_found": "❌ Channel not found!",
+      "message_not_found": "❌ Message not found!",
+      "failed": "❌ Failed to execute command!"
+    },
+    "success": "✅ Success!",
+    "loading": "⏳ Processing...",
+    "cancelled": "❌ Cancelled.",
+    "case": "📋 Case",
+    "day": "day",
+    "days": "days"
+  },
+  "commands": {
+    "8ball": {
+      "name": "8ball",
+      "description": "Ask the magic 8-ball a question",
+      "options": {
+        "question": "The question to ask"
+      },
+      "responses": [
+        "It is certain.",
+        "It is decidedly so.",
+        "Without a doubt.",
+        "Yes definitely.",
+        "You may rely on it.",
+        "As I see it, yes.",
+        "Most likely.",
+        "Outlook good.",
+        "Yes.",
+        "Signs point to yes.",
+        "Reply hazy, try again.",
+        "Ask again later.",
+        "Better not tell you now.",
+        "Cannot predict now.",
+        "Concentrate and ask again.",
+        "Don't count on it.",
+        "My reply is no.",
+        "My sources say no.",
+        "Outlook not so good.",
+        "Very doubtful."
+      ]
+    },
+    "afk": {
+      "name": "afk",
+      "description": "Set yourself as AFK",
+      "options": {
+        "reason": "Reason for being AFK"
+      },
+      "no_reason": "",
+      "success": "💤 You are now AFK{reason}",
+      "set": "💤 You are now AFK{reason}",
+      "removed": "👋 Welcome back! Your AFK status has been removed.",
+      "user_afk": "💤 **{user}** is currently AFK{reason}",
+      "welcome_back": "👋 Welcome back! You were AFK for {minutes} minute{plural}.",
+      "mention_afk": "💤 **{user}** is currently AFK ({minutes} minute{plural} ago): {reason}"
+    },
+    "auditlog": {
+      "name": "auditlog",
+      "description": "View server audit logs",
+      "subcommands": {
+        "view": {
+          "name": "view",
+          "description": "View recent audit log entries",
+          "options": {
+            "action": "Filter by action type",
+            "moderator": "Filter by moderator",
+            "target": "Filter by target user",
+            "limit": "Number of entries to show (default: 10)"
+          }
+        }
+      },
+      "no_logs": "📋 No audit logs found.",
+      "no_logs_user": "📋 No audit logs found for {user}.",
+      "no_logs_moderator": "📋 No audit logs found for moderator {moderator}.",
+      "title": "📋 Audit Logs",
+      "title_user": "📋 Audit Logs for {user}",
+      "title_moderator": "📋 Audit Logs by {moderator}",
+      "showing": "Showing the last {count} audit log entries",
+      "showing_user": "Showing the last {count} audit log entries",
+      "showing_moderator": "Showing the last {count} actions by this moderator",
+      "moderator_label": "Moderator",
+      "target_label": "Target",
+      "reason_label": "Reason",
+      "no_reason": "No reason provided",
+      "channel_set": "✅ Audit log channel set to {channel}!\nAll moderation actions will now be logged there."
+    },
+    "automod": {
+      "name": "automod",
+      "description": "Configure auto-moderation settings",
+      "subcommands": {
+        "spam": "Configure spam detection",
+        "links": "Configure link filtering",
+        "caps": "Configure caps detection",
+        "mentions": "Configure mention spam",
+        "profanity": "Configure profanity filter",
+        "invites": "Configure invite filtering"
+      },
+      "enabled": "✅ {feature} has been enabled!",
+      "disabled": "❌ {feature} has been disabled!",
+      "updated": "✅ Auto-moderation **{subcommand}** settings updated successfully!",
+      "update_failed": "❌ Failed to update auto-moderation settings.",
+      "status_title": "🛡️ Auto-Moderation Settings",
+      "status_description": "Current auto-moderation configuration:",
+      "status_not_configured": "Auto-moderation is not configured yet.",
+      "spam_detection": "📧 Spam Detection",
+      "spam_enabled": "✅ Enabled ({threshold} msgs in {interval}s)",
+      "spam_disabled": "❌ Disabled",
+      "link_filtering": "🔗 Link Filtering",
+      "link_enabled": "✅ Enabled\nWhitelist: {whitelist}",
+      "link_whitelist_none": "None",
+      "link_disabled": "❌ Disabled",
+      "caps_detection": "🔠 Caps Detection",
+      "caps_enabled": "✅ Enabled (>{threshold}%)",
+      "caps_disabled": "❌ Disabled",
+      "mass_mentions": "👥 Mass Mentions",
+      "mentions_enabled": "✅ Enabled (max {threshold})",
+      "mentions_disabled": "❌ Disabled",
+      "profanity_filter": "🚫 Profanity Filter",
+      "profanity_enabled": "✅ Enabled ({count} words)",
+      "profanity_disabled": "❌ Disabled",
+      "invite_filtering": "📨 Invite Filtering",
+      "invites_enabled": "✅ Enabled",
+      "invites_enabled_own": "✅ Enabled (own invites allowed)",
+      "invites_disabled": "❌ Disabled",
+      "action": "⚡ Action",
+      "progressive_punishment": "📊 Progressive Punishment",
+      "progressive_enabled": "✅ Enabled ({violations} violations → {action}{duration})",
+      "progressive_timeout_duration": " for {minutes}m",
+      "progressive_disabled": "❌ Disabled",
+      "status_footer": "Use /automod <type> to configure each module"
+    },
+    "avatar": {
+      "name": "avatar",
+      "description": "Display a user's avatar",
+      "options": {
+        "user": "The user to get the avatar of"
+      },
+      "title": "{user}'s Avatar"
+    },
+    "ban": {
+      "name": "ban",
+      "description": "Ban a user from the server",
+      "options": {
+        "user": "The user to ban",
+        "reason": "Reason for the ban",
+        "days": "Number of days of messages to delete (0-7)"
+      },
+      "cannot_ban_self": "❌ You cannot ban yourself!",
+      "cannot_ban_bot": "❌ I cannot ban myself!",
+      "cannot_ban_owner": "❌ You cannot ban the server owner!",
+      "higher_role": "❌ You cannot ban a user with a role higher than or equal to yours!",
+      "bot_higher_role": "❌ I cannot ban a user with a role higher than or equal to mine!",
+      "no_reason": "No reason provided",
+      "reason_label": "Reason",
+      "messages_deleted": "🗑️ Messages Deleted",
+      "success": "✅ Banned **{user}**{reason} | Case: #{case}",
+      "dm_sent": "📨 DM sent to user about their ban",
+      "dm_failed": "⚠️ Could not DM user about their ban",
+      "dm_message": "You have been banned from **{server}**\nReason: {reason}",
+      "failed": "❌ Failed to ban the user!"
+    },
+    "botinfo": {
+      "name": "botinfo",
+      "description": "Display information about the bot",
+      "title": "🤖 Bot Information",
+      "bot_name": "📛 Bot Name",
+      "bot_id": "🆔 Bot ID",
+      "uptime": "⏰ Uptime",
+      "servers": "🌐 Servers",
+      "users": "👥 Users",
+      "ping": "📡 Ping",
+      "platform": "💻 Platform",
+      "node_version": "🔧 Node Version",
+      "discordjs": "📚 discord.js",
+      "unknown": "Unknown",
+      "footer": "Built with TypeScript + Bun"
+    },
+    "case": {
+      "name": "case",
+      "description": "View or manage moderation cases",
+      "subcommands": {
+        "view": {
+          "name": "view",
+          "description": "View a specific case",
+          "options": {
+            "case_number": "The case number to view"
+          }
+        },
+        "list": {
+          "name": "list",
+          "description": "List recent cases",
+          "options": {
+            "user": "Filter by user"
+          }
+        }
+      },
+      "not_found": "❌ Case not found!",
+      "no_cases": "❌ No cases found.",
+      "title": "Case #{number}",
+      "list_title": "Recent Cases"
+    },
+    "choose": {
+      "name": "choose",
+      "description": "Choose randomly from given options",
+      "options": {
+        "choices": "Options separated by commas"
+      },
+      "result": "🎲 I choose: **{choice}**"
+    },
+    "clear": {
+      "name": "clear",
+      "description": "Clear messages from a channel",
+      "options": {
+        "amount": "Number of messages to delete (1-100)",
+        "user": "Only delete messages from this user"
+      },
+      "invalid_amount": "❌ Please provide a number between 1 and 100!",
+      "success": "✅ Deleted {count} message{plural}!",
+      "no_messages": "❌ No messages found matching the filters!",
+      "failed": "❌ There was an error deleting messages. Messages older than 14 days cannot be bulk deleted."
+    },
+    "coinflip": {
+      "name": "coinflip",
+      "description": "Flip a coin",
+      "result": "🪙 The coin landed on: **{result}**",
+      "heads": "Heads",
+      "tails": "Tails"
+    },
+    "config": {
+      "name": "config",
+      "description": "Configure server settings",
+      "subcommands": {
+        "welcome": "Configure welcome messages",
+        "goodbye": "Configure goodbye messages",
+        "logging": "Configure server logging",
+        "xp": "Configure XP system",
+        "autorole": "Configure auto-role",
+        "view": "View current configuration"
+      },
+      "updated": "✅ Configuration updated!",
+      "view_title": "⚙️ Server Configuration"
+    },
+    "embed": {
+      "name": "embed",
+      "description": "Create a custom embed",
+      "options": {
+        "title": "Embed title",
+        "description": "Embed description",
+        "color": "Embed color (hex code)",
+        "footer": "Embed footer text",
+        "image": "Embed image URL"
+      },
+      "created": "✅ Embed created!"
+    },
+    "giveaway": {
+      "name": "giveaway",
+      "description": "Manage giveaways",
+      "subcommands": {
+        "start": {
+          "name": "start",
+          "description": "Start a new giveaway",
+          "options": {
+            "prize": "What to give away",
+            "duration": "Duration in minutes",
+            "winners": "Number of winners (default: 1)"
+          }
+        },
+        "end": {
+          "name": "end",
+          "description": "End a giveaway early",
+          "options": {
+            "giveaway_id": "The giveaway ID to end"
+          }
+        },
+        "list": {
+          "name": "list",
+          "description": "List recent giveaways"
+        },
+        "reroll": {
+          "name": "reroll",
+          "description": "Reroll winners",
+          "options": {
+            "message_id": "The message ID of the giveaway"
+          }
+        }
+      },
+      "title": "🎉 GIVEAWAY 🎉",
+      "prize": "**Prize:** {prize}",
+      "winners": "**Winners:** {count}",
+      "ends": "**Ends:** <t:{time}:R>",
+      "react_to_enter": "React with 🎉 to enter!",
+      "hosted_by": "Hosted by {user}",
+      "create_failed": "❌ Failed to create giveaway message!",
+      "warning_persist": "⚠️ Giveaway started but may not persist if bot restarts.",
+      "no_giveaways": "❌ No giveaways found in this server.",
+      "list_title": "📋 Recent Giveaways",
+      "status_ended": "✅ Ended",
+      "status_active": "🔴 Active",
+      "showing_last": "Showing last {count} giveaways",
+      "not_found": "❌ Giveaway not found!",
+      "already_ended": "❌ This giveaway has already ended!",
+      "ended": "✅ Giveaway #{id} ({prize}) has been ended early. Winners will be picked shortly.",
+      "message_not_found": "❌ Message not found!",
+      "no_reactions": "❌ No 🎉 reactions found on this message!",
+      "no_participants": "❌ No valid participants found!",
+      "reroll_success": "🎉 **New Winner:** {winner}\nCongratulations!",
+      "reroll_failed": "❌ Failed to reroll the giveaway. Make sure the message ID is correct.",
+      "created": "✅ Giveaway created! ID: {id}"
+    },
+    "config": {
+      "view_title": "⚙️ Server Configuration",
+      "view_description": "Configuration for **{server}**",
+      "welcome_messages": "👋 Welcome Messages",
+      "goodbye_messages": "👋 Goodbye Messages",
+      "auto_role": "🎭 Auto Role",
+      "mod_log": "📋 Mod Log",
+      "xp_system": "⭐ XP System",
+      "enabled": "Enabled",
+      "channel": "Channel",
+      "message": "Message",
+      "not_set": "Not set",
+      "default": "Default",
+      "xp_range": "XP Range",
+      "cooldown": "Cooldown",
+      "level_notifications": "Level Notifications",
+      "logging_title": "📋 Current Logging Configuration",
+      "log_channel": "📍 Log Channel",
+      "message_edits": "📝 Message Edits",
+      "message_deletes": "🗑️ Message Deletes",
+      "member_joins": "📥 Member Joins",
+      "member_leaves": "📤 Member Leaves",
+      "role_changes": "🎭 Role Changes",
+      "voice_activity": "🔊 Voice Activity",
+      "channel_events": "📁 Channel Events",
+      "server_events": "⚙️ Server Events",
+      "role_events": "🎭 Role Events",
+      "ban_events": "🔨 Ban Events",
+      "invite_tracking": "📨 Invite Tracking",
+      "enabled_status": "✅ Enabled",
+      "disabled_status": "❌ Disabled"
+    },
+    "poll": {
+      "ends": "Ends",
+      "no_time_limit": "No time limit",
+      "use_end_command": "Use `/poll end` to close",
+      "created_by": "Poll created by {user}",
+      "failed_create": "❌ Failed to create poll message!",
+      "created": "✅ Poll created! ID: {id}",
+      "warning_persist": "⚠️ Poll created but may not persist if bot restarts.",
+      "not_found": "❌ Poll not found!",
+      "already_ended": "❌ This poll has already ended!",
+      "channel_not_found": "❌ Channel not found!",
+      "message_not_found": "❌ Message not found!",
+      "votes": "votes",
+      "results_title": "📊 Poll Results: {question}",
+      "total_votes": "📈 Total Votes",
+      "ended_by": "Poll ended by {user}",
+      "ended": "✅ Poll #{id} has been ended.",
+      "failed_end": "❌ Failed to end poll!",
+      "no_polls": "❌ No polls found in this server.",
+      "list_title": "📋 Recent Polls",
+      "status_ended": "✅ Ended",
+      "status_active": "🔴 Active",
+      "showing_last": "Showing last {count} polls"
+    },
+    "help": {
+      "name": "help",
+      "description": "Display all available commands",
+      "title": "📚 Help Menu",
+      "welcome": "Welcome to the help menu! Use the dropdown menu below to browse commands by category.",
+      "total_commands": "Total Commands",
+      "categories": "Categories",
+      "commands_label": "commands",
+      "footer": "Select a category from the menu below",
+      "select_placeholder": "📂 Select a category",
+      "view": "View",
+      "home_button": "🏠 Home",
+      "docs_button": "📖 Full Docs",
+      "not_for_you": "This menu is not for you! Use /help to get your own.",
+      "commands_in_category": "commands in this category",
+      "category": "Category: {category}",
+      "use_command": "Use /help <command> for more info on a specific command"
+    },
+    "invite": {
+      "name": "invite",
+      "description": "Get the bot invite link",
+      "title": "📨 Invite Me!",
+      "description": "Click [here]({link}) to invite me to your server!",
+      "link_label": "🔗 Invite Link",
+      "click_here": "Click Here"
+    },
+    "kick": {
+      "name": "kick",
+      "description": "Kick a user from the server",
+      "options": {
+        "user": "The user to kick",
+        "reason": "Reason for the kick"
+      },
+      "cannot_kick_self": "❌ You cannot kick yourself!",
+      "cannot_kick_bot": "❌ I cannot kick myself!",
+      "cannot_kick_owner": "❌ You cannot kick the server owner!",
+      "higher_role": "❌ You cannot kick a user with a role higher than or equal to yours!",
+      "bot_higher_role": "❌ I cannot kick a user with a role higher than or equal to mine!",
+      "no_reason": "No reason provided",
+      "reason_label": "Reason",
+      "success": "✅ Kicked **{user}**{reason} | Case: #{case}",
+      "dm_sent": "📨 DM sent to user about their kick",
+      "dm_failed": "⚠️ Could not DM user about their kick",
+      "dm_message": "You have been kicked from **{server}**\nReason: {reason}",
+      "failed": "❌ Failed to kick the user!"
+    },
+    "leaderboard": {
+      "name": "leaderboard",
+      "description": "View the server XP leaderboard",
+      "title": "🏆 XP Leaderboard",
+      "your_rank": "Your Rank: #{rank}",
+      "no_data": "❌ No leaderboard data available.",
+      "level": "Level",
+      "xp": "XP",
+      "messages": "messages",
+      "not_your_menu": "This menu is not for you!"
+    },
+    "levelroles": {
+      "name": "levelroles",
+      "description": "Manage level roles",
+      "subcommands": {
+        "add": "Add a level role",
+        "remove": "Remove a level role",
+        "list": "List all level roles"
+      },
+      "added": "✅ Level role added: Level {level} → {role}",
+      "removed": "✅ Level role removed for level {level}",
+      "already_exists": "❌ A level role already exists for level {level}!",
+      "role_too_high": "❌ I cannot manage this role! It is higher than or equal to my highest role.",
+      "add_failed": "❌ Failed to add level role.",
+      "remove_failed": "❌ Failed to remove level role.",
+      "no_rewards": "❌ No level roles configured.",
+      "list_title": "📊 Level Roles",
+      "list_description": "Roles awarded when reaching specific levels",
+      "level_label": "Level {level}",
+      "footer": "{count} level role{plural}"
+    },
+    "locale": {
+      "name": "locale",
+      "description": "Manage server language settings",
+      "subcommands": {
+        "set": "Set the server language",
+        "view": "View current language settings",
+        "list": "List all available languages"
+      },
+      "invalid_locale": "❌ Invalid language selected!",
+      "set_success": "{emoji} Server language changed to **{language}**!\nAll bot messages will now be displayed in this language.",
+      "set_failed": "❌ Failed to change server language.",
+      "view_title": "🌍 Language Settings",
+      "current_language": "Current Language",
+      "language_code": "Language Code",
+      "view_footer": "Use /locale set to change the language",
+      "list_title": "🌍 Available Languages",
+      "list_description": "Select a language using `/locale set <language>`",
+      "list_footer": "More languages coming soon!"
+    },
+    "lockdown": {
+      "name": "lockdown",
+      "description": "Lockdown or unlock a channel",
+      "locked": "🔒 Channel locked.",
+      "unlocked": "🔓 Channel unlocked.",
+      "already_locked": "❌ Channel is already locked!",
+      "already_unlocked": "❌ Channel is already unlocked!",
+      "text_only": "❌ You can only lock/unlock text channels!",
+      "lock_message": "🔒 **Channel Locked**\nThis channel has been locked by {user}.\n**Reason:** {reason}",
+      "unlock_message": "🔓 **Channel Unlocked**\nThis channel has been unlocked by {user}.\n**Reason:** {reason}",
+      "lock_success": "✅ Successfully locked {channel}!",
+      "unlock_success": "✅ Successfully unlocked {channel}!",
+      "failed": "❌ Failed to lock/unlock channel! Make sure I have the Manage Channels permission."
+    },
+    "massrole": {
+      "name": "massrole",
+      "description": "Add or remove a role from multiple users",
+      "subcommands": {
+        "add": "Add a role to multiple users",
+        "remove": "Remove a role from multiple users"
+      },
+      "options": {
+        "role": "Role to add/remove",
+        "filter": "Only affect members with this role",
+        "bots": "Include bots (default: false)"
+      },
+      "role_resolve_failed": "❌ Could not resolve the role. Please try again.",
+      "bot_no_permission": "❌ I need the Manage Roles permission!",
+      "processing": "⏳ Processing {count} members...",
+      "success_add": "✅ Role {role} added to **{count}** member{plural}!",
+      "success_remove": "✅ Role {role} removed from **{count}** member{plural}!",
+      "partial": "\n⚠️ Failed for {count} member{plural}",
+      "higher_role": "❌ You cannot manage this role as it is higher than or equal to your highest role!",
+      "bot_higher_role": "❌ I cannot manage this role as it is higher than or equal to my highest role!",
+      "failed": "❌ An error occurred while processing the mass role operation!"
+    },
+    "mute": {
+      "name": "mute",
+      "description": "Timeout a user",
+      "options": {
+        "user": "The user to mute",
+        "duration": "Duration in minutes",
+        "reason": "Reason for the mute"
+      },
+      "success": "✅ Muted **{user}** for {duration}{reason}",
+      "already_muted": "❌ User is already muted!",
+      "cannot_mute_self": "❌ You cannot mute yourself!",
+      "cannot_mute_owner": "❌ You cannot mute the server owner!",
+      "not_in_server": "❌ User is not in this server!",
+      "higher_role": "❌ You cannot mute a member with equal or higher role!",
+      "bot_higher_role": "❌ I cannot timeout this member! They may have a higher role than me.",
+      "no_reason": "No reason provided",
+      "reason_label": "Reason",
+      "failed": "❌ Failed to timeout the member!",
+      "cannot_mute_bot": "❌ I cannot mute myself!",
+      "higher_role": "❌ You cannot mute a user with a role higher than or equal to yours!"
+    },
+    "nickname": {
+      "name": "nickname",
+      "description": "Manage user nicknames",
+      "subcommands": {
+        "set": "Set a user's nickname",
+        "reset": "Reset a user's nickname",
+        "lock": "Lock a user's nickname",
+        "unlock": "Unlock a user's nickname"
+      },
+      "options": {
+        "user": "The user",
+        "nickname": "The new nickname"
+      },
+      "no_reason": "No reason provided",
+      "bot_no_permission": "❌ I need the Manage Nicknames permission!",
+      "user_not_found": "❌ User not found in this server!",
+      "cannot_change_owner": "❌ I cannot change the server owner's nickname!",
+      "bot_higher_role": "❌ I cannot change the nickname of someone with a role equal to or higher than mine!",
+      "higher_role": "❌ You cannot change the nickname of someone with a role equal to or higher than yours!",
+      "set_success": "✅ Changed nickname for {user} to **{nickname}**",
+      "reset_success": "✅ Reset nickname for {user} to their username",
+      "lock_success": "✅ Locked nickname for {user} to **{nickname}**\nTheir nickname will be automatically reset if they try to change it.",
+      "not_locked": "❌ {user} does not have a locked nickname!",
+      "unlock_success": "✅ Unlocked nickname for {user}. They can now change their nickname freely.",
+      "failed": "❌ Failed to change nickname! Make sure I have the proper permissions.",
+      "set": "✅ Set {user}'s nickname to **{nickname}**",
+      "reset": "✅ Reset {user}'s nickname",
+      "locked": "🔒 Locked {user}'s nickname to **{nickname}**",
+      "unlocked": "🔓 Unlocked {user}'s nickname",
+      "cannot_modify": "❌ I cannot modify this user's nickname!"
+    },
+    "ping": {
+      "name": "ping",
+      "description": "Check the bot's latency",
+      "calculating": "🏓 Pinging...",
+      "pong": "🏓 Pong! Latency: {latency}ms | API Latency: {api}ms"
+    },
+    "poll": {
+      "name": "poll",
+      "description": "Create and manage polls",
+      "subcommands": {
+        "start": {
+          "name": "start",
+          "description": "Create a poll",
+          "options": {
+            "question": "The poll question",
+            "option1": "First option",
+            "option2": "Second option",
+            "option3": "Third option",
+            "option4": "Fourth option",
+            "option5": "Fifth option",
+            "duration": "Duration in minutes (optional)"
+          }
+        },
+        "end": {
+          "name": "end",
+          "description": "End a poll and show results",
+          "options": {
+            "poll_id": "The poll ID to end"
+          }
+        },
+        "list": {
+          "name": "list",
+          "description": "List recent polls"
+        }
+      },
+      "title": "📊 {question}",
+      "ends": "**Ends:** <t:{time}:R>",
+      "no_time_limit": "**No time limit** - Use `/poll end` to close",
+      "created_by": "Poll created by {user}",
+      "created": "✅ Poll created! ID: {id}",
+      "failed_create": "❌ Failed to create poll message!",
+      "warning_persist": "⚠️ Poll started but may not persist if bot restarts.",
+      "not_found": "❌ Poll not found!",
+      "already_ended": "❌ This poll has already ended!",
+      "channel_not_found": "❌ Could not find poll channel!",
+      "message_not_found": "❌ Could not find poll message!",
+      "ended": "✅ Poll #{id} has been ended and results have been posted!",
+      "failed_end": "❌ Failed to end the poll!",
+      "no_polls": "❌ No polls found in this server.",
+      "list_title": "📋 Recent Polls",
+      "results_title": "📊 Poll Results: {question}",
+      "total_votes": "📈 Total Votes",
+      "poll_ended": "Poll has ended",
+      "status_active": "🔴 Active",
+      "status_ended": "✅ Ended"
+    },
+    "rank": {
+      "name": "rank",
+      "description": "View your or another user's rank",
+      "options": {
+        "user": "The user to check"
+      },
+      "title": "{user}'s Rank Card",
+      "stats": "📊 Stats",
+      "progress": "🎯 Progress",
+      "rank": "Rank",
+      "level": "Level",
+      "xp": "XP",
+      "messages": "Messages",
+      "current": "Current",
+      "needed": "Needed",
+      "next_level": "Next Level",
+      "progress_percent": "Progress",
+      "level_progress": "Level {current} ➜ {next}"
+    },
+    "reactionrole": {
+      "name": "reactionrole",
+      "description": "Manage reaction roles",
+      "subcommands": {
+        "add": "Add a reaction role",
+        "remove": "Remove a reaction role",
+        "list": "List reaction roles"
+      },
+      "default_description": "React to this message to get roles!",
+      "footer": "Use /reactionrole add to configure roles",
+      "invalid_channel": "❌ Cannot create reaction role panel in this channel type!",
+      "panel_created": "✅ Reaction role panel created!\n**Message ID:** {id}\n\nUse `/reactionrole add {id} <emoji> <role>` to add roles.",
+      "role_too_high": "❌ I cannot manage this role! It is higher than or equal to my highest role.",
+      "added": "✅ Reaction role added!\nEmoji: {emoji}\nRole: {role}",
+      "add_failed": "❌ Failed to add reaction role.",
+      "message_not_found": "❌ Message not found! Make sure the message ID is correct and in this channel.",
+      "invalid_emoji": "❌ Invalid emoji! Make sure to use a valid emoji.",
+      "removed": "✅ Reaction role removed!",
+      "remove_failed": "❌ Failed to remove reaction role.",
+      "no_roles": "❌ No reaction roles found for this message.",
+      "list_title": "📋 Reaction Roles",
+      "list_description": "Message ID: {id}",
+      "not_found": "❌ Reaction role not found!"
+    },
+    "remind": {
+      "name": "remind",
+      "description": "Set a reminder",
+      "options": {
+        "duration": "Duration (e.g., 10m, 2h, 1d)",
+        "message": "What to remind you about"
+      },
+      "created": "✅ I'll remind you in {duration}!",
+      "reminder": "🔔 **Reminder:** {message}"
+    },
+    "role": {
+      "name": "role",
+      "description": "Add or remove a role from a member",
+      "subcommands": {
+        "add": {
+          "name": "add",
+          "description": "Add a role to a member",
+          "options": {
+            "target": "The member to add the role to",
+            "role": "The role to add"
+          }
+        },
+        "remove": {
+          "name": "remove",
+          "description": "Remove a role from a member",
+          "options": {
+            "target": "The member to remove the role from",
+            "role": "The role to remove"
+          }
+        }
+      },
+      "added": "✅ Added {role} to {user}",
+      "removed": "✅ Removed {role} from {user}",
+      "already_has": "❌ {user} already has the {role} role!",
+      "doesnt_have": "❌ {user} doesn't have the {role} role!",
+      "cannot_manage": "❌ You cannot manage a role equal or higher than your highest role!",
+      "bot_cannot_manage": "❌ I cannot manage a role equal or higher than my highest role!",
+      "managed_role": "❌ This role is managed by an integration and cannot be assigned manually!",
+      "failed": "❌ Failed to modify the role!",
+      "not_in_server": "❌ User is not in this server!"
+    },
+    "roll": {
+      "name": "roll",
+      "description": "Roll a dice",
+      "options": {
+        "sides": "Number of sides (default: 6)"
+      },
+      "result": "🎲 You rolled a **{result}** (1-{sides})"
+    },
+    "rules": {
+      "name": "rules",
+      "description": "Manage server rules",
+      "subcommands": {
+        "add": "Add a rule",
+        "remove": "Remove a rule",
+        "edit": "Edit a rule",
+        "list": "List all rules"
+      },
+      "added": "✅ Rule #{number} added!",
+      "removed": "✅ Rule #{number} removed!",
+      "updated": "✅ Rule #{number} updated!",
+      "not_found": "❌ Rule not found!",
+      "exists": "❌ Rule #{number} already exists!",
+      "no_rules": "❌ No rules configured.",
+      "list_title": "📜 Server Rules"
+    },
+    "say": {
+      "name": "say",
+      "description": "Make the bot say something",
+      "options": {
+        "message": "The message to send",
+        "channel": "Channel to send the message in"
+      },
+      "sent": "✅ Message sent!"
+    },
+    "serverinfo": {
+      "name": "serverinfo",
+      "description": "Display information about the server",
+      "title": "{server} Server Information",
+      "server_name": "📝 Server Name",
+      "server_id": "🆔 Server ID",
+      "owner": "👑 Owner",
+      "created": "📅 Created",
+      "members": "👥 Members",
+      "channels": "💬 Channels",
+      "emojis": "😀 Emojis",
+      "roles": "🎭 Roles",
+      "boost_level": "🚀 Boost Level",
+      "level": "Level {level}"
+    },
+    "snipe": {
+      "name": "snipe",
+      "description": "View the last deleted message",
+      "no_messages": "❌ No recently deleted messages!",
+      "deleted_by": "Deleted message from {user}"
+    },
+    "softban": {
+      "name": "softban",
+      "description": "Softban a user (ban and immediately unban to delete messages)",
+      "options": {
+        "user": "The user to softban",
+        "reason": "Reason for the softban"
+      },
+      "no_reason": "No reason provided",
+      "cannot_softban_self": "❌ You cannot softban yourself!",
+      "cannot_softban_bot": "❌ I cannot softban myself!",
+      "cannot_softban_owner": "❌ You cannot softban the server owner!",
+      "bot_higher_role": "❌ I cannot softban this user as their highest role is equal to or higher than mine!",
+      "higher_role": "❌ You cannot softban this user as their highest role is equal to or higher than yours!",
+      "dm_message": "You have been softbanned from **{server}**.\n**Reason:** {reason}\n**Messages Deleted:** {days} day{plural}\n\nA softban removes you from the server and deletes your recent messages, but you can rejoin immediately.",
+      "success": "✅ Successfully softbanned **{user}**!\n**Reason:** {reason}\n**Messages Deleted:** {days} day{plural}",
+      "failed": "❌ Failed to softban user! Make sure I have the Ban Members permission."
+    },
+    "tag": {
+      "name": "tag",
+      "description": "Manage custom server tags/commands",
+      "subcommands": {
+        "create": "Create a tag",
+        "delete": "Delete a tag",
+        "edit": "Edit a tag",
+        "info": "View tag information",
+        "list": "List all tags",
+        "use": "Use a tag"
+      },
+      "created": "✅ Tag `{name}` created!\nUsers can now type `!{name}` to trigger it.",
+      "deleted": "✅ Tag `{name}` deleted!",
+      "updated": "✅ Tag **{name}** updated!",
+      "not_found": "❌ No tag named `{name}` exists!",
+      "exists": "❌ A tag named `{name}` already exists!",
+      "no_tags": "📝 No tags found.\nCreate one with `/tag create`!",
+      "list_title": "📝 Custom Tags",
+      "list_description": "This server has {count} tag{plural}",
+      "list_footer": "Showing {shown} of {total} tags",
+      "uses_label": "Used {count} times",
+      "info_title": "📝 Tag: !{name}",
+      "info_response": "📄 Response",
+      "info_created_by": "👤 Created By",
+      "info_uses": "📊 Uses",
+      "info_created": "📅 Created",
+      "info_unknown": "Unknown"
+    },
+    "tempban": {
+      "name": "tempban",
+      "description": "Temporarily ban a user",
+      "options": {
+        "user": "The user to ban",
+        "duration": "Duration in minutes",
+        "reason": "Reason for the ban"
+      },
+      "success": "✅ Temporarily banned **{user}** for {duration}{reason}",
+      "already_banned": "❌ User is already temporarily banned!"
+    },
+    "ticket": {
+      "name": "ticket",
+      "description": "Manage support tickets",
+      "subcommands": {
+        "create": "Create a ticket",
+        "close": "Close a ticket",
+        "add": "Add a user to the ticket",
+        "remove": "Remove a user from the ticket"
+      },
+      "need_admin": "❌ You need **Administrator** permission to use this command!",
+      "need_manage_channels": "❌ You need **Manage Channels** permission to use this command!",
+      "setup_success_title": "✅ Ticket System Configured",
+      "category": "Category",
+      "support_role": "Support Role",
+      "log_channel": "Log Channel",
+      "not_set": "Not set",
+      "setup_failed": "❌ Failed to configure ticket system.",
+      "max_tickets": "❌ You already have {count} open ticket{plural}: {tickets}\n\nPlease close your existing ticket{plural} before creating a new one.",
+      "no_subject": "No subject provided",
+      "created": "✅ Ticket created: {channel}",
+      "create_failed": "❌ Failed to create ticket. Please try again.",
+      "not_ticket_channel": "❌ This is not a ticket channel!",
+      "invalid_channel": "❌ Invalid channel!",
+      "close_failed": "❌ Failed to close ticket.",
+      "closed": "✅ Ticket closed!",
+      "user_added": "✅ Added {user} to the ticket.",
+      "add_user_failed": "❌ Failed to add user to ticket.",
+      "user_removed": "✅ Removed {user} from the ticket.",
+      "remove_user_failed": "❌ Failed to remove user from ticket.",
+      "stats_title": "📊 Ticket Statistics",
+      "total_tickets": "📂 Total Tickets",
+      "open_tickets": "🟢 Open Tickets",
+      "closed_tickets": "🔴 Closed Tickets",
+      "top_users": "👥 Top Users",
+      "no_tickets_yet": "No tickets yet",
+      "stats_failed": "❌ Failed to get ticket statistics.",
+      "not_ticket": "❌ This is not a ticket channel!",
+      "title": "Ticket - {user}"
+    },
+    "unban": {
+      "name": "unban",
+      "description": "Unban a user",
+      "options": {
+        "user_id": "The user ID to unban",
+        "reason": "Reason for the unban"
+      },
+      "success": "✅ Unbanned user {id}{reason}",
+      "not_banned": "❌ This user is not banned!"
+    },
+    "unmute": {
+      "name": "unmute",
+      "description": "Remove timeout from a user",
+      "options": {
+        "user": "The user to unmute",
+        "reason": "Reason for the unmute"
+      },
+      "success": "✅ Unmuted **{user}**{reason}",
+      "not_muted": "❌ User is not muted!"
+    },
+    "userinfo": {
+      "name": "userinfo",
+      "description": "Display information about a user",
+      "options": {
+        "user": "The user to get information about"
+      },
+      "username": "👤 Username",
+      "user_id": "🆔 User ID",
+      "bot": "🤖 Bot",
+      "yes": "Yes",
+      "no": "No",
+      "account_created": "📅 Account Created",
+      "joined_server": "📥 Joined Server",
+      "nickname": "🎨 Nickname",
+      "none": "None",
+      "roles": "🎭 Roles [{count}]"
+    },
+    "voice": {
+      "name": "voice",
+      "description": "Manage voice-related moderation",
+      "subcommands": {
+        "mute": "Mute a user in voice",
+        "unmute": "Unmute a user in voice",
+        "deafen": "Deafen a user in voice",
+        "undeafen": "Undeafen a user in voice",
+        "disconnect": "Disconnect a user from voice",
+        "move": "Move a user to another voice channel"
+      },
+      "no_reason": "No reason provided",
+      "not_in_server": "❌ User not found in server!",
+      "higher_role": "❌ You cannot perform this action on someone with equal or higher role!",
+      "not_in_voice": "❌ User is not in a voice channel!",
+      "mute_success": "✅ Voice muted {user} in {channel}\nReason: {reason}\nCase: #{case}",
+      "unmute_success": "✅ Voice unmuted {user} in {channel}",
+      "deafen_success": "✅ Voice deafened {user} in {channel}\nReason: {reason}\nCase: #{case}",
+      "undeafen_success": "✅ Voice undeafened {user} in {channel}",
+      "disconnect_success": "✅ Disconnected {user} from {channel}\nReason: {reason}\nCase: #{case}",
+      "move_success": "✅ Moved {user} from {from} to {to}\nReason: {reason}\nCase: #{case}",
+      "failed": "❌ Failed to perform action: {error}"
+    },
+    "warn": {
+      "name": "warn",
+      "description": "Warn a user",
+      "options": {
+        "user": "The user to warn",
+        "reason": "Reason for the warning",
+        "rule": "Rule number violated"
+      },
+      "success": "✅ Warned **{user}**{reason}\nTotal warnings: {count}",
+      "case_not_found": "❌ Case not found!",
+      "dm_sent": "📨 DM sent to user about their warning",
+      "dm_failed": "⚠️ Could not DM user about their warning",
+      "threshold_reached": "⚠️ User has reached the warning threshold!"
+    },
+    "backup": {
+      "name": "backup",
+      "description": "Manage database backups",
+      "owner_only": "❌ Only bot owners can use this command!",
+      "create": {
+        "success_title": "✅ Backup Created",
+        "success_description": "Database backup created successfully!\n\n📁 **Path:** `{path}`",
+        "error": "❌ Failed to create backup: {error}"
+      },
+      "list": {
+        "title": "📦 Database Backups",
+        "total": "Total backups: {count}",
+        "no_backups": "❌ No backups found.",
+        "backup_info": "**Size:** {size}\n**Date:** {date}"
+      },
+      "restore": {
+        "success_title": "✅ Backup Restored",
+        "success_description": "Database has been restored from backup!\n\n📁 **Backup:** `{backup}`",
+        "warning_title": "⚠️ Important",
+        "warning_message": "The bot should be restarted for changes to fully take effect.",
+        "error": "❌ Failed to restore backup: {error}"
+      },
+      "status": {
+        "title": "📊 Backup System Status",
+        "auto_backup": "🔄 Auto Backup",
+        "total_backups": "📦 Total Backups",
+        "max_retention": "🗑️ Retention Limit",
+        "backup_dir": "📁 Backup Directory"
+      }
+    },
+    "health": {
+      "name": "health",
+      "description": "View bot health status",
+      "owner_only": "❌ Only bot owners can use this command!",
+      "title": "{emoji} System Health: {status}",
+      "uptime": "⏰ Uptime",
+      "memory": "💾 Memory Usage",
+      "memory_value": "{used}MB / {total}MB ({percentage}%)",
+      "database": "🗄️ Database",
+      "database_connected": "✅ Connected ({time}ms)",
+      "database_disconnected": "❌ Disconnected",
+      "discord": "🤖 Discord API",
+      "discord_connected": "✅ Connected ({ping}ms, {guilds} guilds)",
+      "discord_disconnected": "❌ Disconnected",
+      "errors": "⚠️ Issues",
+      "footer": "Monitoring: {enabled}"
+    },
+    "appeal": {
+      "name": "appeal",
+      "description": "Submit an appeal for a moderation action",
+      "success": "✅ Appeal submitted successfully for {type}. A moderator will review it soon.",
+      "error": "❌ Failed to submit appeal. Please try again later."
+    }
+  },
+  "dashboard": {
+    "chat": {
+      "title": "💬 Live Chat Viewer",
+      "select_channel": "Select a channel",
+      "loading": "Loading messages...",
+      "no_messages": "No messages in this channel",
+      "connected": "Connected to live chat"
+    },
+    "permissions": {
+      "title": "🔒 Permission Manager",
+      "role_list": "Server Roles",
+      "permissions_for": "Permissions for {role}",
+      "save_changes": "Save Changes",
+      "dangerous_permissions": "⚠️ Dangerous Permissions",
+      "managed_role": "This role is managed by an integration"
+    },
+    "appeals": {
+      "title": "📋 Moderation Queue",
+      "pending": "Pending",
+      "approved": "Approved",
+      "denied": "Denied",
+      "filter_by": "Filter by",
+      "approve": "Approve",
+      "deny": "Deny",
+      "add_note": "Add Note",
+      "no_appeals": "No appeals found"
+    },
+    "analytics": {
+      "title": "📊 Analytics",
+      "messages": "Messages",
+      "members": "Members",
+      "commands": "Commands Used",
+      "moderation": "Moderation Actions",
+      "top_users": "Top Active Users",
+      "top_channels": "Most Active Channels",
+      "time_range": "Time Range",
+      "24h": "Last 24 Hours",
+      "7d": "Last 7 Days",
+      "30d": "Last 30 Days"
+    },
+    "bulk_actions": {
+      "title": "⚡ Bulk Actions",
+      "select_action": "Select Action",
+      "ban": "Ban",
+      "kick": "Kick",
+      "add_role": "Add Role",
+      "remove_role": "Remove Role",
+      "select_users": "Select Users",
+      "reason": "Reason",
+      "execute": "Execute",
+      "confirm": "Confirm Bulk Action",
+      "success": "{successCount} succeeded, {failedCount} failed",
+      "history": "Action History"
+    },
+    "backups": {
+      "title": "💾 Backup Management",
+      "create_backup": "Create Backup",
+      "restore": "Restore",
+      "download": "Download",
+      "delete": "Delete",
+      "includes": "Include",
+      "settings": "Settings",
+      "roles": "Roles",
+      "channels": "Channels",
+      "rules": "Rules",
+      "automod": "Automod",
+      "preview": "Preview Backup",
+      "no_backups": "No backups found"
+    }
+  },
+  "common": {
+    "errors": {
+      "guild_only": "❌ This command can only be used in a server!",
+      "no_permission": "❌ You don't have permission to use this command!",
+      "bot_no_permission": "❌ I don't have permission to do that!",
+      "user_not_found": "❌ User not found!",
+      "role_not_found": "❌ Role not found!",
+      "channel_not_found": "❌ Channel not found!",
+      "message_not_found": "❌ Message not found!",
+      "failed": "❌ Failed to execute command!"
+    },
+    "success": "✅ Success!",
+    "loading": "⏳ Processing...",
+    "cancelled": "❌ Cancelled.",
+    "case": "📋 Case",
+    "day": "day",
+    "days": "days",
+    "enabled": "✅ Enabled",
+    "disabled": "❌ Disabled",
+    "xp": {
+      "level_up": "Congratulations {user}! You reached level {level}!"
+    },
+    "automod": {
+      "violations": {
+        "spam": "Please do not spam messages.",
+        "links": "Links are not allowed in this server.",
+        "caps": "Please do not use excessive caps.",
+        "mentions": "Please do not mention too many users at once.",
+        "profanity": "Please keep the chat family-friendly.",
+        "invites": "Discord invites are not allowed in this server."
+      }
+    }
+  }
+}

@@ -1,0 +1,2356 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+  <script src="/embed-builder.js"></script>
+  <script src="/console.js"></script>
+  <script src="/chat-viewer.js"></script>
+  <script src="/permission-manager.js"></script>
+  <script src="/moderation-queue.js"></script>
+  <script src="/analytics-charts.js"></script>
+  <script src="/bulk-actions.js"></script>
+  <script src="/backup-manager.js"></script>
+  <style>
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 8px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: #27272a;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: #52525b;
+      border-radius: 4px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+      background: #71717a;
+    }
+    .prose-invert {
+      color: #d4d4d8;
+    }
+    .prose-invert h1 {
+      color: #fafafa;
+      font-size: 2.25rem;
+      font-weight: bold;
+      margin-top: 0;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #3f3f46;
+      padding-bottom: 0.5rem;
+    }
+    .prose-invert h2 {
+      color: #fafafa;
+      font-size: 1.875rem;
+      font-weight: bold;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #3f3f46;
+      padding-bottom: 0.5rem;
+    }
+    .prose-invert h3 {
+      color: #e4e4e7;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-top: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .prose-invert h4 {
+      color: #e4e4e7;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-top: 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .prose-invert p {
+      margin: 1rem 0;
+      line-height: 1.75;
+    }
+    .prose-invert ul, .prose-invert ol {
+      margin: 1rem 0;
+      padding-left: 1.5rem;
+    }
+    .prose-invert li {
+      margin: 0.5rem 0;
+    }
+    .prose-invert code {
+      background: #27272a;
+      color: #a5f3fc;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-size: 0.875em;
+      font-family: 'Courier New', monospace;
+    }
+    .prose-invert pre {
+      background: #18181b;
+      border: 1px solid #3f3f46;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+    .prose-invert pre code {
+      background: transparent;
+      padding: 0;
+      color: #e4e4e7;
+    }
+    .prose-invert a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+    .prose-invert a:hover {
+      text-decoration: underline;
+    }
+    .prose-invert blockquote {
+      border-left: 4px solid #3f3f46;
+      padding-left: 1rem;
+      margin: 1rem 0;
+      color: #a1a1aa;
+      font-style: italic;
+    }
+    .prose-invert table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    .prose-invert th, .prose-invert td {
+      border: 1px solid #3f3f46;
+      padding: 0.5rem;
+      text-align: left;
+    }
+    .prose-invert th {
+      background: #27272a;
+      font-weight: 600;
+    }
+    .prose-invert strong {
+      color: #fafafa;
+      font-weight: 600;
+    }
+    .prose-invert hr {
+      border: 0;
+      border-top: 1px solid #3f3f46;
+      margin: 2rem 0;
+    }
+  </style>
+</head>
+<body class="bg-zinc-900 text-white">
+  <div id="app"></div>
+
+  <script>
+    const API = {
+      async checkAuth() {
+        const res = await fetch('/auth/user');
+        return res.json();
+      },
+      async fetchLocales() {
+        const res = await fetch('/api/locales');
+        return res.json();
+      },
+      async fetchGuildConfig(guildId) {
+        const res = await fetch(`/api/guilds/${guildId}/config`);
+        return res.json();
+      },
+      async updateGuildConfig(guildId, config) {
+        const res = await fetch(`/api/guilds/${guildId}/config`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        return res.json();
+      },
+      async fetchGuildStats(guildId) {
+        const res = await fetch(`/api/guilds/${guildId}/stats`);
+        return res.json();
+      },
+      async fetchTickets(guildId) {
+        const res = await fetch(`/api/guilds/${guildId}/tickets`);
+        return res.json();
+      },
+      async fetchWarnings(guildId) {
+        const res = await fetch(`/api/guilds/${guildId}/warnings`);
+        return res.json();
+      },
+      async deleteWarning(guildId, warningId) {
+        const res = await fetch(`/api/guilds/${guildId}/warnings/${warningId}`, { method: 'DELETE' });
+        return res.json();
+      },
+      async fetchLogs(guildId) {
+        const res = await fetch(`/api/guilds/${guildId}/logs?limit=100`);
+        return res.json();
+      },
+      async fetchAutomod(guildId) {
+        const res = await fetch(`/api/guilds/${guildId}/automod`);
+        return res.json();
+      },
+      async updateAutomod(guildId, config) {
+        const res = await fetch(`/api/guilds/${guildId}/automod`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        return res.json();
+      },
+      async fetchRules(guildId) {
+        const res = await fetch(`/api/guilds/${guildId}/rules`);
+        return res.json();
+      },
+      async addRule(guildId, title, description) {
+        const res = await fetch(`/api/guilds/${guildId}/rules`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description })
+        });
+        return res.json();
+      },
+      async deleteRule(guildId, ruleId) {
+        const res = await fetch(`/api/guilds/${guildId}/rules/${ruleId}`, { method: 'DELETE' });
+        return res.json();
+      },
+      async fetchUser(guildId, userId) {
+        const res = await fetch(`/api/guilds/${guildId}/users/${userId}`);
+        return res.json();
+      },
+      async fetchTicketTranscript(guildId, ticketId) {
+        const res = await fetch(`/api/guilds/${guildId}/tickets/${ticketId}/transcript`);
+        return res.json();
+      }
+    };
+
+    const userCache = {};
+
+    async function getUserDisplay(userId) {
+      if (userCache[userId]) {
+        return userCache[userId];
+      }
+
+      try {
+        const result = await API.fetchUser(currentGuild, userId);
+        if (result.success) {
+          const user = result.data;
+          const displayName = user.nickname || user.username;
+          const fullTag = user.discriminator !== '0' ? `${user.username}#${user.discriminator}` : user.username;
+          userCache[userId] = {
+            displayName,
+            fullTag,
+            avatar: user.avatar,
+            id: user.id,
+            joinedAt: user.joinedAt
+          };
+          return userCache[userId];
+        }
+      } catch (error) {
+        console.error('Failed to fetch user:', error);
+      }
+
+      return {
+        displayName: `User ${userId}`,
+        fullTag: `User ${userId}`,
+        avatar: null,
+        id: userId,
+        joinedAt: null
+      };
+    }
+
+    function renderUserTag(userId, showAvatar = false) {
+      const cachedUser = userCache[userId];
+      if (!cachedUser) {
+        return `<span class="user-tag loading" data-user-id="${userId}">Loading...</span>`;
+      }
+
+      const avatarHtml = showAvatar && cachedUser.avatar
+        ? `<img src="${cachedUser.avatar}" class="inline-block w-6 h-6 rounded-full mr-2" alt="${cachedUser.displayName}">`
+        : '';
+
+      const joinedText = cachedUser.joinedAt
+        ? `Joined: ${new Date(cachedUser.joinedAt).toLocaleDateString()}`
+        : 'Join date unknown';
+
+      const tooltipId = `tooltip-${userId}-${Math.random().toString(36).substr(2, 9)}`;
+
+      return `
+        <span class="user-tag-wrapper inline-flex items-center" data-user-id="${userId}">
+          <span class="user-tag-trigger inline-flex items-center cursor-help text-indigo-400 hover:text-indigo-300" onmouseenter="showTooltip('${tooltipId}', event)" onmouseleave="scheduleHideTooltip('${tooltipId}')">
+            ${avatarHtml}
+            <span>${cachedUser.displayName}</span>
+          </span>
+          <div id="${tooltipId}" class="user-tooltip hidden fixed bg-zinc-900 border border-zinc-700 rounded-lg p-3 z-50 min-w-[200px] shadow-xl pointer-events-none" onmouseenter="cancelHideTooltip('${tooltipId}')" onmouseleave="hideTooltip('${tooltipId}')">
+            <div class="flex items-center gap-2 mb-2 pointer-events-auto">
+              ${cachedUser.avatar ? `<img src="${cachedUser.avatar}" class="w-10 h-10 rounded-full" alt="${cachedUser.displayName}">` : ''}
+              <div>
+                <div class="font-bold text-sm">${cachedUser.displayName}</div>
+                <div class="text-xs text-zinc-400">${cachedUser.fullTag}</div>
+              </div>
+            </div>
+            <div class="text-xs text-zinc-500 border-t border-zinc-700 pt-2 pointer-events-auto">
+              <div>ID: ${cachedUser.id}</div>
+              <div>${joinedText}</div>
+            </div>
+          </div>
+        </span>
+      `;
+    }
+
+    let tooltipTimeout = null;
+
+    function showTooltip(tooltipId, event) {
+      cancelHideTooltip(tooltipId);
+      const tooltip = document.getElementById(tooltipId);
+      if (tooltip && event) {
+        const rect = event.target.closest('.user-tag-trigger').getBoundingClientRect();
+        tooltip.style.left = rect.left + 'px';
+        tooltip.style.top = (rect.bottom + 4) + 'px';
+        tooltip.classList.remove('hidden');
+        tooltip.style.pointerEvents = 'auto';
+      }
+    }
+
+    function scheduleHideTooltip(tooltipId) {
+      tooltipTimeout = setTimeout(() => hideTooltip(tooltipId), 100);
+    }
+
+    function cancelHideTooltip(tooltipId) {
+      if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = null;
+      }
+    }
+
+    function hideTooltip(tooltipId) {
+      const tooltip = document.getElementById(tooltipId);
+      if (tooltip) {
+        tooltip.classList.add('hidden');
+        tooltip.style.pointerEvents = 'none';
+      }
+    }
+
+    async function preloadUsers(userIds) {
+      const uniqueIds = [...new Set(userIds)];
+      const missingIds = uniqueIds.filter(id => !userCache[id]);
+
+      await Promise.all(missingIds.map(id => getUserDisplay(id)));
+    }
+
+    function formatActionType(actionType) {
+      if (!actionType) return 'Unknown';
+
+      return actionType
+        .split('_')
+        .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+        .join(' ');
+    }
+
+    function renderLogin() {
+      return `
+        <div class="min-h-screen flex items-center justify-center">
+          <div class="bg-zinc-800 p-8 rounded-lg shadow-xl max-w-md w-full">
+            <h1 class="text-3xl font-bold mb-6 text-center">Bot Dashboard</h1>
+            <p class="text-zinc-400 mb-6 text-center">Manage your Discord bot from the web</p>
+            <a href="/auth/login" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded text-center transition">
+              Login with Discord
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDashboard(user, isOwner, botClientId) {
+      const guilds = user.guilds || [];
+      const adminGuilds = guilds.filter(g => (g.permissions & 0x8) === 0x8);
+
+      return `
+        <div class="min-h-screen">
+          <nav class="bg-zinc-800 border-b border-zinc-700 px-4 py-3">
+            <div class="container mx-auto flex justify-between items-center">
+              <h1 class="text-2xl font-bold">Bot Dashboard</h1>
+              <div class="flex items-center gap-4">
+                <span class="text-zinc-400">${user.username}${user.discriminator !== '0' ? '#' + user.discriminator : ''}</span>
+                ${isOwner === false ? '<span class="text-yellow-400 text-xs px-2 py-1 bg-yellow-900/20 rounded">Limited Access</span>' : ''}
+                <a href="/auth/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition">Logout</a>
+              </div>
+            </div>
+          </nav>
+
+          <div class="container mx-auto p-6">
+            ${isOwner === false ? `
+              <div class="bg-yellow-900/20 border border-yellow-600/30 p-4 rounded-lg mb-6">
+                <p class="text-yellow-400">⚠️ Dashboard access is restricted to bot owners. Contact the bot administrator for access.</p>
+              </div>
+            ` : ''}
+
+            <div class="mb-6 flex gap-4">
+              <button onclick="showDashboardSecurity()" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+                <span>🔐</span>
+                <span>Dashboard Security Logs</span>
+              </button>
+              <button onclick="showConsole()" class="bg-zinc-700 hover:bg-zinc-600 px-6 py-3 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+                <span>💻</span>
+                <span>Console Logs</span>
+              </button>
+            </div>
+
+            <h2 class="text-2xl font-bold mb-6">Your Servers</h2>
+
+            ${adminGuilds.length === 0 ? `
+              <div class="bg-zinc-800 p-8 rounded-lg text-center">
+                <p class="text-zinc-400">You don't have administrator permissions in any servers.</p>
+              </div>
+            ` : `
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${adminGuilds.map(guild => {
+                  if (guild.botInGuild) {
+                    return `
+                      <div class="bg-zinc-800 p-6 rounded-lg hover:bg-zinc-750 transition cursor-pointer" onclick="viewGuild('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')">
+                        <h3 class="text-xl font-bold mb-2">${guild.name}</h3>
+                        <p class="text-zinc-400 text-sm mb-4">ID: ${guild.id}</p>
+                        <button class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm w-full transition">
+                          Manage Server
+                        </button>
+                      </div>
+                    `;
+                  } else {
+                    const inviteUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + botClientId + '&permissions=8&scope=bot%20applications.commands&guild_id=' + guild.id;
+                    return `
+                      <div class="bg-zinc-800 p-6 rounded-lg border-2 border-zinc-700">
+                        <h3 class="text-xl font-bold mb-2">${guild.name}</h3>
+                        <p class="text-zinc-400 text-sm mb-2">ID: ${guild.id}</p>
+                        <p class="text-yellow-400 text-sm mb-4">⚠️ Bot not in this server</p>
+                        <a href="${inviteUrl}" target="_blank" class="block text-center bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm w-full transition">
+                          Add Bot to Server
+                        </a>
+                      </div>
+                    `;
+                  }
+                }).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    let currentGuild = null;
+    let currentGuildName = '';
+    let currentTab = 'overview';
+    let guildData = {};
+    let availableLocales = [];
+
+    async function showMainDashboard() {
+      if (typeof cleanupConsoleWebSocket !== 'undefined') {
+        cleanupConsoleWebSocket();
+      }
+
+      const auth = await API.checkAuth();
+      if (!auth.authenticated) {
+        document.getElementById('app').innerHTML = renderLogin();
+        return;
+      }
+      document.getElementById('app').innerHTML = renderDashboard(auth.user, auth.isOwner, auth.botClientId);
+    }
+
+    async function showDashboardSecurity() {
+      const auth = await API.checkAuth();
+      if (!auth.authenticated) {
+        document.getElementById('app').innerHTML = renderLogin();
+        return;
+      }
+
+      document.getElementById('app').innerHTML = `
+        <div class="min-h-screen">
+          <nav class="bg-zinc-800 border-b border-zinc-700 px-4 py-3">
+            <div class="container mx-auto flex justify-between items-center">
+              <h1 class="text-2xl font-bold">Dashboard Security Logs</h1>
+              <div class="flex items-center gap-4">
+                <button onclick="showMainDashboard()" class="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-sm transition">
+                  ← Back to Servers
+                </button>
+                <span class="text-zinc-400">${auth.user.username}${auth.user.discriminator !== '0' ? '#' + auth.user.discriminator : ''}</span>
+                <a href="/auth/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition">Logout</a>
+              </div>
+            </div>
+          </nav>
+
+          <div class="container mx-auto p-6">
+            ${renderDashboardAuditTab()}
+          </div>
+        </div>
+      `;
+
+      setTimeout(() => {
+        loadDashboardAudit();
+      }, 100);
+    }
+
+    async function showConsole() {
+      const auth = await API.checkAuth();
+      if (!auth.authenticated) {
+        document.getElementById('app').innerHTML = renderLogin();
+        return;
+      }
+
+      if (typeof cleanupConsoleWebSocket !== 'undefined') {
+        cleanupConsoleWebSocket();
+      }
+
+      document.getElementById('app').innerHTML = `
+        <div class="min-h-screen">
+          <nav class="bg-zinc-800 border-b border-zinc-700 px-4 py-3">
+            <div class="container mx-auto flex justify-between items-center">
+              <h1 class="text-2xl font-bold">Console Logs</h1>
+              <div class="flex items-center gap-4">
+                <button onclick="showMainDashboard()" class="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-sm transition">
+                  ← Back to Servers
+                </button>
+                <span class="text-zinc-400">${auth.user.username}${auth.user.discriminator !== '0' ? '#' + auth.user.discriminator : ''}</span>
+                <a href="/auth/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition">Logout</a>
+              </div>
+            </div>
+          </nav>
+
+          ${renderConsoleTab()}
+        </div>
+      `;
+
+      setTimeout(() => {
+        if (typeof initConsoleWebSocket !== 'undefined') {
+          initConsoleWebSocket();
+        }
+      }, 100);
+    }
+
+    async function viewGuild(guildId, guildName) {
+      if (typeof cleanupConsoleWebSocket !== 'undefined') {
+        cleanupConsoleWebSocket();
+      }
+
+      currentGuild = guildId;
+      currentGuildName = guildName;
+      window.currentGuildId = guildId;
+      currentTab = 'overview';
+      await loadGuildData();
+      renderGuildDashboard();
+    }
+
+    async function loadGuildData() {
+      const [config, stats, locales] = await Promise.all([
+        API.fetchGuildConfig(currentGuild),
+        API.fetchGuildStats(currentGuild),
+        availableLocales.length === 0 ? API.fetchLocales() : Promise.resolve({ data: availableLocales })
+      ]);
+      guildData = { config: config.data, stats: stats.data };
+      if (availableLocales.length === 0) {
+        availableLocales = locales.data;
+      }
+
+      const userIds = stats.data.warnings.recent.map(w => w.user_id);
+      await preloadUsers(userIds);
+    }
+
+    async function switchTab(tab) {
+      currentTab = tab;
+      if (tab === 'tickets') {
+        const tickets = await API.fetchTickets(currentGuild);
+        guildData.tickets = tickets.data;
+        const userIds = tickets.data.map(t => t.user_id);
+        await preloadUsers(userIds);
+      } else if (tab === 'warnings') {
+        const warnings = await API.fetchWarnings(currentGuild);
+        guildData.warnings = warnings.data;
+        const userIds = warnings.data.flatMap(w => [w.user_id, w.moderator_id]);
+        await preloadUsers(userIds);
+      } else if (tab === 'logs') {
+        const logs = await API.fetchLogs(currentGuild);
+        guildData.logs = logs.data;
+        const userIds = logs.data.flatMap(l => [l.moderator_id, l.target_id]);
+        await preloadUsers(userIds);
+      } else if (tab === 'automod') {
+        const automod = await API.fetchAutomod(currentGuild);
+        guildData.automod = automod.data || {};
+      } else if (tab === 'rules') {
+        const rules = await API.fetchRules(currentGuild);
+        guildData.rules = rules.data || [];
+      }
+      renderGuildDashboard();
+    }
+
+    function renderGuildDashboard() {
+      const tabs = [
+        { id: 'overview', name: 'Overview', icon: '📊' },
+        { id: 'config', name: 'Configuration', icon: '⚙️' },
+        { id: 'tickets', name: 'Tickets', icon: '🎫' },
+        { id: 'warnings', name: 'Warnings', icon: '⚠️' },
+        { id: 'logs', name: 'Audit Logs', icon: '📋' },
+        { id: 'automod', name: 'AutoMod', icon: '🛡️' },
+        { id: 'rules', name: 'Rules', icon: '📜' },
+        { id: 'chat', name: 'Live Chat', icon: '💬' },
+        { id: 'permissions', name: 'Permissions', icon: '🔒' },
+        { id: 'appeals', name: 'Appeals', icon: '📋' },
+        { id: 'analytics', name: 'Analytics', icon: '📈' },
+        { id: 'bulk', name: 'Bulk Actions', icon: '⚡' },
+        { id: 'backups', name: 'Backups', icon: '💾' },
+        { id: 'docs', name: 'Documentation', icon: '📚' }
+      ];
+
+      let content = '';
+      if (currentTab === 'overview') content = renderOverviewTab();
+      else if (currentTab === 'config') content = renderConfigTab();
+      else if (currentTab === 'tickets') content = renderTicketsTab();
+      else if (currentTab === 'warnings') content = renderWarningsTab();
+      else if (currentTab === 'logs') content = renderLogsTab();
+      else if (currentTab === 'automod') content = renderAutomodTab();
+      else if (currentTab === 'rules') content = renderRulesTab();
+      else if (currentTab === 'chat') content = renderChatTab();
+      else if (currentTab === 'permissions') content = renderPermissionsTab();
+      else if (currentTab === 'appeals') content = renderAppealsTab();
+      else if (currentTab === 'analytics') content = renderAnalyticsTab();
+      else if (currentTab === 'bulk') content = renderBulkTab();
+      else if (currentTab === 'backups') content = renderBackupsTab();
+      else if (currentTab === 'docs') content = renderDocsTab();
+
+      document.getElementById('app').innerHTML = `
+        <div class="min-h-screen">
+          <nav class="bg-zinc-800 border-b border-zinc-700 px-4 py-3">
+            <div class="container mx-auto flex justify-between items-center">
+              <div class="flex items-center gap-4">
+                <button onclick="showMainDashboard()" class="text-zinc-400 hover:text-white transition">&larr; Back</button>
+                <h1 class="text-2xl font-bold">${currentGuildName}</h1>
+              </div>
+              <a href="/auth/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition">Logout</a>
+            </div>
+          </nav>
+
+          <div class="border-b border-zinc-700 bg-zinc-800">
+            <div class="container mx-auto">
+              <nav class="flex gap-1 overflow-x-auto">
+                ${tabs.map(tab => `
+                  <button onclick="switchTab('${tab.id}')" class="px-4 py-3 text-sm font-medium transition ${
+                    currentTab === tab.id
+                      ? 'text-white border-b-2 border-indigo-500'
+                      : 'text-zinc-400 hover:text-white'
+                  }">
+                    ${tab.icon} ${tab.name}
+                  </button>
+                `).join('')}
+              </nav>
+            </div>
+          </div>
+
+          <div class="max-w-7xl mx-auto p-6">
+            ${content}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDocsTab() {
+      setTimeout(() => {
+        loadDocumentation();
+      }, 100);
+
+      return `
+        <div class="max-w-6xl mx-auto">
+          <div class="bg-zinc-800 rounded-lg p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4">📚 Documentation</h2>
+            <p class="text-zinc-400">Browse the complete documentation for your bot.</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div class="lg:col-span-1">
+              <div class="bg-zinc-800 rounded-lg p-4 sticky top-4">
+                <h3 class="font-semibold mb-4 text-zinc-300">Documentation</h3>
+                <div id="docs-nav" class="space-y-2">
+                  <div class="text-center text-zinc-500 py-4">Loading...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-3">
+              <div class="bg-zinc-800 rounded-lg p-6">
+                <div id="docs-content" class="prose prose-invert max-w-none">
+                  <div class="text-center text-zinc-500 py-8">
+                    Select a documentation page from the menu
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadDocumentation() {
+      try {
+        const res = await fetch('/api/docs', { credentials: 'include' });
+        const result = await res.json();
+
+        if (result.success) {
+          const navHtml = result.data.map(doc => `
+            <button
+              onclick="loadDoc('${doc.id}')"
+              class="w-full text-left px-4 py-2 rounded hover:bg-zinc-700 transition flex items-center gap-2 doc-nav-item"
+              data-doc-id="${doc.id}"
+            >
+              <span>${doc.icon}</span>
+              <span class="text-sm">${doc.name}</span>
+            </button>
+          `).join('');
+
+          document.getElementById('docs-nav').innerHTML = navHtml;
+
+          if (result.data.length > 0) {
+            loadDoc(result.data[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load documentation list:', error);
+        document.getElementById('docs-nav').innerHTML = '<div class="text-red-400 text-sm p-2">Failed to load docs</div>';
+      }
+    }
+
+    async function loadDoc(docId) {
+      try {
+        document.querySelectorAll('.doc-nav-item').forEach(btn => {
+          btn.classList.remove('bg-zinc-700', 'text-white');
+          btn.classList.add('text-zinc-400');
+        });
+
+        const activeBtn = document.querySelector(`[data-doc-id="${docId}"]`);
+        if (activeBtn) {
+          activeBtn.classList.add('bg-zinc-700', 'text-white');
+          activeBtn.classList.remove('text-zinc-400');
+        }
+
+        document.getElementById('docs-content').innerHTML = '<div class="text-center text-zinc-500 py-8">Loading...</div>';
+
+        const res = await fetch(`/api/docs/${docId}`, { credentials: 'include' });
+        const result = await res.json();
+
+        if (result.success) {
+          const htmlContent = marked.parse(result.data.content);
+          document.getElementById('docs-content').innerHTML = htmlContent;
+        } else {
+          document.getElementById('docs-content').innerHTML = '<div class="text-red-400">Failed to load documentation</div>';
+        }
+      } catch (error) {
+        console.error('Failed to load doc:', error);
+        document.getElementById('docs-content').innerHTML = '<div class="text-red-400">Failed to load documentation</div>';
+      }
+    }
+
+    async function viewTicketTranscript(ticketId) {
+      try {
+        const result = await API.fetchTicketTranscript(currentGuild, ticketId);
+        if (!result.success) {
+          alert(result.error || 'Failed to load transcript');
+          return;
+        }
+
+        const messages = result.data;
+
+        const modalHtml = `
+          <div id="transcript-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onclick="closeTranscriptModal(event)">
+            <div class="bg-zinc-800 rounded-lg w-full max-w-4xl max-h-[80vh] overflow-hidden" onclick="event.stopPropagation()">
+              <div class="p-6 border-b border-zinc-700 flex justify-between items-center">
+                <h2 class="text-xl font-bold">Ticket #${ticketId} Transcript</h2>
+                <div class="flex gap-2 items-center">
+                  <button onclick="downloadTranscript(${ticketId})" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm transition">
+                    📥 Download
+                  </button>
+                  <button onclick="closeTranscriptModal()" class="text-zinc-400 hover:text-white text-2xl">&times;</button>
+                </div>
+              </div>
+              <div class="p-6 overflow-y-auto max-h-[calc(80vh-80px)] space-y-4">
+                ${messages.length === 0 ? '<p class="text-zinc-400 text-center">No messages found</p>' : messages.map(msg => `
+                  <div class="flex gap-3">
+                    <img src="${msg.author.avatar}" class="w-10 h-10 rounded-full" alt="${msg.author.username}">
+                    <div class="flex-1">
+                      <div class="flex items-baseline gap-2 mb-1">
+                        <span class="font-bold ${msg.author.bot ? 'text-indigo-400' : 'text-white'}">${msg.author.username}</span>
+                        ${msg.author.bot ? '<span class="px-1 py-0.5 text-xs bg-indigo-600 rounded">BOT</span>' : ''}
+                        <span class="text-xs text-zinc-500">${new Date(msg.timestamp).toLocaleString()}</span>
+                      </div>
+                      <div class="text-zinc-300 whitespace-pre-wrap break-words">${msg.content || '<em class="text-zinc-500">No content</em>'}</div>
+                      ${msg.attachments.length > 0 ? `
+                        <div class="mt-2 space-y-2">
+                          ${msg.attachments.map(att => `
+                            <div class="flex items-center gap-2 text-sm">
+                              ${att.contentType?.startsWith('image/') ? `
+                                <img src="${att.url}" class="max-w-sm rounded" alt="${att.name}">
+                              ` : `
+                                <a href="${att.url}" target="_blank" class="text-indigo-400 hover:text-indigo-300 underline">
+                                  📎 ${att.name}
+                                </a>
+                              `}
+                            </div>
+                          `).join('')}
+                        </div>
+                      ` : ''}
+                      ${msg.embeds.length > 0 ? `
+                        <div class="mt-2 space-y-2">
+                          ${msg.embeds.map(embed => `
+                            <div class="border-l-4 border-indigo-500 bg-zinc-900/50 p-3 rounded">
+                              ${embed.title ? `<div class="font-bold mb-1">${embed.title}</div>` : ''}
+                              ${embed.description ? `<div class="text-sm text-zinc-400">${embed.description}</div>` : ''}
+                            </div>
+                          `).join('')}
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        const modalElement = modalContainer.firstElementChild;
+        modalElement.dataset.ticketId = ticketId;
+        modalElement.dataset.messages = JSON.stringify(messages);
+        document.body.appendChild(modalElement);
+      } catch (error) {
+        console.error('Failed to view transcript:', error);
+        alert('Failed to load ticket transcript');
+      }
+    }
+
+    function closeTranscriptModal(event) {
+      if (!event || event.target.id === 'transcript-modal' || !event) {
+        const modal = document.getElementById('transcript-modal');
+        if (modal) modal.remove();
+      }
+    }
+
+    function downloadTranscript(ticketId) {
+      const modal = document.getElementById('transcript-modal');
+      if (!modal) return;
+
+      const messages = JSON.parse(modal.dataset.messages || '[]');
+
+      let transcriptText = `Ticket #${ticketId} Transcript\n`;
+      transcriptText += `Generated: ${new Date().toLocaleString()}\n`;
+      transcriptText += `Server: ${currentGuildName}\n`;
+      transcriptText += `${'='.repeat(80)}\n\n`;
+
+      messages.forEach(msg => {
+        const timestamp = new Date(msg.timestamp).toLocaleString();
+        const username = msg.author.username + (msg.author.bot ? ' [BOT]' : '');
+
+        transcriptText += `[${timestamp}] ${username}\n`;
+
+        if (msg.content) {
+          transcriptText += `${msg.content}\n`;
+        }
+
+        if (msg.attachments.length > 0) {
+          msg.attachments.forEach(att => {
+            transcriptText += `📎 Attachment: ${att.name} - ${att.url}\n`;
+          });
+        }
+
+        if (msg.embeds.length > 0) {
+          msg.embeds.forEach(embed => {
+            transcriptText += `[Embed]\n`;
+            if (embed.title) transcriptText += `Title: ${embed.title}\n`;
+            if (embed.description) transcriptText += `${embed.description}\n`;
+          });
+        }
+
+        transcriptText += '\n';
+      });
+
+      const blob = new Blob([transcriptText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ticket-${ticketId}-transcript.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function formatUptime(ms) {
+      const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+      const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+      const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
+      if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+
+    function renderOverviewTab() {
+      const stats = guildData.stats;
+      return `
+        <div class="max-w-6xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h3 class="text-zinc-400 text-sm mb-2">Total Tickets</h3>
+            <p class="text-3xl font-bold">${stats.tickets.total}</p>
+          </div>
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h3 class="text-zinc-400 text-sm mb-2">Open Tickets</h3>
+            <p class="text-3xl font-bold text-green-400">${stats.tickets.open}</p>
+          </div>
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h3 class="text-zinc-400 text-sm mb-2">Total Warnings</h3>
+            <p class="text-3xl font-bold text-yellow-400">${stats.warnings.total}</p>
+          </div>
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h3 class="text-zinc-400 text-sm mb-2">Mod Actions</h3>
+            <p class="text-3xl font-bold text-red-400">${stats.moderation.total}</p>
+          </div>
+        </div>
+
+        ${stats.health ? `
+        <div class="bg-zinc-800 p-6 rounded-lg mb-8 ${stats.health.status === 'healthy' ? 'border-l-4 border-green-500' : stats.health.status === 'degraded' ? 'border-l-4 border-yellow-500' : 'border-l-4 border-red-500'}">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold">System Health</h2>
+            <span class="px-3 py-1 rounded text-sm font-bold uppercase ${stats.health.status === 'healthy' ? 'bg-green-900/50 text-green-400' : stats.health.status === 'degraded' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'}">
+              ${stats.health.status}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div class="bg-zinc-700/50 p-4 rounded">
+              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Uptime</p>
+              <p class="text-lg font-bold">${formatUptime(stats.health.uptime)}</p>
+            </div>
+            <div class="bg-zinc-700/50 p-4 rounded">
+              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Memory</p>
+              <p class="text-lg font-bold">${stats.health.memory.used}MB / ${stats.health.memory.total}MB</p>
+              <div class="w-full bg-zinc-600 rounded-full h-2 mt-2">
+                <div class="h-2 rounded-full transition-all ${stats.health.memory.percentage > 90 ? 'bg-red-500' : stats.health.memory.percentage > 75 ? 'bg-yellow-500' : 'bg-green-500'}"
+                     style="width: ${stats.health.memory.percentage}%"></div>
+              </div>
+              <p class="text-xs text-zinc-400 mt-1">${stats.health.memory.percentage}% used</p>
+            </div>
+            <div class="bg-zinc-700/50 p-4 rounded">
+              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Database</p>
+              <p class="text-lg font-bold">${stats.health.database.connected ? 'Connected' : 'Disconnected'}</p>
+              ${stats.health.database.connected ? `<p class="text-xs text-zinc-400 mt-1">${stats.health.database.responseTime}ms response</p>` : ''}
+            </div>
+            <div class="bg-zinc-700/50 p-4 rounded">
+              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Discord API</p>
+              <p class="text-lg font-bold">${stats.health.discord.connected ? 'Connected' : 'Disconnected'}</p>
+              ${stats.health.discord.connected ? `<p class="text-xs text-zinc-400 mt-1">${stats.health.discord.ping}ms • ${stats.health.discord.guilds} guilds</p>` : ''}
+            </div>
+          </div>
+
+          ${stats.health.errors && stats.health.errors.length > 0 ? `
+            <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-4">
+              <p class="font-bold text-red-400 mb-2">Issues Detected</p>
+              <ul class="list-disc list-inside text-sm text-red-300 space-y-1">
+                ${stats.health.errors.map(err => `<li>${err}</li>`).join('')}
+              </ul>
+            </div>
+          ` : `
+            <div class="bg-green-900/20 border border-green-500/30 rounded-lg p-3 mb-4">
+              <p class="text-sm text-green-400">All systems operational</p>
+            </div>
+          `}
+
+          <button onclick="switchTab('console')" class="w-full bg-zinc-700/30 hover:bg-zinc-700/50 rounded-lg p-4 transition text-left">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-semibold">💻 Console Logs</span>
+                <p class="text-zinc-400 text-sm mt-1">View real-time bot console output</p>
+              </div>
+              <span class="text-indigo-400">View →</span>
+            </div>
+          </button>
+        </div>
+        ` : ''}
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">Moderation Stats</h2>
+            <div class="space-y-3">
+              <div class="flex justify-between">
+                <span class="text-zinc-400">Kicks</span>
+                <span class="font-bold">${stats.moderation.kicks}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-zinc-400">Bans</span>
+                <span class="font-bold">${stats.moderation.bans}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-zinc-400">Mutes</span>
+                <span class="font-bold">${stats.moderation.mutes}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">Recent Warnings</h2>
+            <div class="space-y-2">
+              ${stats.warnings.recent.length === 0 ? '<p class="text-zinc-400 text-sm">No recent warnings</p>' : stats.warnings.recent.slice(0, 5).map(w => `
+                <div class="text-sm flex items-center">
+                  ${renderUserTag(w.user_id, true)}
+                  <span class="text-zinc-500 mx-2">•</span>
+                  <span class="text-zinc-300">${w.reason || 'No reason'}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        </div>
+      `;
+    }
+
+    function renderConfigTab() {
+      const config = guildData.config;
+      return `
+        <div class="max-w-4xl mx-auto space-y-6">
+          <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold">⚙️ Server Configuration</h1>
+            <button type="button" onclick="switchTab('docs')" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm transition">📚 View Docs</button>
+          </div>
+          <form id="config-form" class="space-y-6">
+            <!-- General Settings -->
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">⚙️ General Settings</h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Server Prefix</label>
+                  <input type="text" name="prefix" value="${config.prefix || '/'}"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Language</label>
+                  <select name="locale" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    ${availableLocales.map(locale => `
+                      <option value="${locale.code}" ${config.locale === locale.code ? 'selected' : ''}>
+                        ${locale.emoji} ${locale.nativeName}
+                      </option>
+                    `).join('')}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Welcome & Goodbye Module -->
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">👋 Welcome & Goodbye</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Welcome Messages</span>
+                  <input type="checkbox" name="welcome_enabled" ${config.welcome_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Welcome Channel ID</label>
+                  <input type="text" name="welcome_channel_id" value="${config.welcome_channel_id || ''}" placeholder="Channel ID for welcome messages"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Right-click a channel → Copy Channel ID (Developer Mode must be enabled)</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Welcome Message</label>
+                  <div class="space-y-2">
+                    <div class="flex space-x-2">
+                      <button type="button" class="toggle-message-type px-3 py-1.5 text-xs rounded bg-indigo-600 hover:bg-indigo-700" data-type="welcome">
+                        Switch to Embed Builder
+                      </button>
+                    </div>
+                    <div class="message-text-editor" data-type="welcome">
+                      <textarea name="welcome_message" rows="2"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">${config.welcome_message || 'Welcome {user} to {server}!'}</textarea>
+                      <p class="text-xs text-zinc-400 mt-1">Use {user} for user mention and {server} for server name</p>
+                    </div>
+                    <div class="message-embed-editor hidden" data-type="welcome" id="welcome-embed-builder"></div>
+                  </div>
+                </div>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Goodbye Messages</span>
+                  <input type="checkbox" name="goodbye_enabled" ${config.goodbye_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Goodbye Channel ID</label>
+                  <input type="text" name="goodbye_channel_id" value="${config.goodbye_channel_id || ''}" placeholder="Channel ID for goodbye messages"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Right-click a channel → Copy Channel ID (Developer Mode must be enabled)</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Goodbye Message</label>
+                  <div class="space-y-2">
+                    <div class="flex space-x-2">
+                      <button type="button" class="toggle-message-type px-3 py-1.5 text-xs rounded bg-indigo-600 hover:bg-indigo-700" data-type="goodbye">
+                        Switch to Embed Builder
+                      </button>
+                    </div>
+                    <div class="message-text-editor" data-type="goodbye">
+                      <textarea name="goodbye_message" rows="2"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">${config.goodbye_message || '{user} has left the server.'}</textarea>
+                      <p class="text-xs text-zinc-400 mt-1">Use {user} for username and {server} for server name</p>
+                    </div>
+                    <div class="message-embed-editor hidden" data-type="goodbye" id="goodbye-embed-builder"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Leveling System Module -->
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">📈 Leveling & XP System</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable XP System</span>
+                  <input type="checkbox" name="xp_enabled" ${config.xp_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Min XP per Message</label>
+                    <input type="number" name="xp_min" value="${config.xp_min || 15}" min="1"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Max XP per Message</label>
+                    <input type="number" name="xp_max" value="${config.xp_max || 25}" min="1"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">XP Cooldown (seconds)</label>
+                    <input type="number" name="xp_cooldown" value="${config.xp_cooldown || 60}" min="0"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  </div>
+                </div>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Level Up Messages</span>
+                  <input type="checkbox" name="level_up_enabled" ${config.level_up_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Level Up Channel ID</label>
+                  <input type="text" name="level_up_channel_id" value="${config.level_up_channel_id || ''}" placeholder="Channel ID for level up messages (leave empty for current channel)"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Optional: Specify a channel for level up messages, or leave empty to send in the user's current channel</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Level Up Message</label>
+                  <textarea name="level_up_message" rows="2"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">${config.level_up_message || 'Congratulations {user}! You reached level {level}!'}</textarea>
+                  <p class="text-xs text-zinc-400 mt-1">Use {user} for user mention and {level} for new level</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Moderation Module -->
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">🛡️ Moderation</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Mod Log Channel ID</label>
+                  <input type="text" name="mod_log_channel_id" value="${config.mod_log_channel_id || ''}" placeholder="Channel ID for moderation logs"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Channel where moderation actions (warns, kicks, bans) will be logged</p>
+                </div>
+                <div>
+                  <h3 class="text-sm font-medium mb-3">Warning Threshold</h3>
+                  <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded mb-3">
+                    <span class="text-sm">Enable Warning Auto-Action</span>
+                    <input type="checkbox" name="warning_threshold_enabled" ${config.warning_threshold_enabled ? 'checked' : ''} class="w-4 h-4">
+                  </label>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium mb-2">Warning Count</label>
+                      <input type="number" name="warning_threshold_count" value="${config.warning_threshold_count || 3}" min="1"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium mb-2">Action</label>
+                      <select name="warning_threshold_action" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                        <option value="mute" ${config.warning_threshold_action === 'mute' ? 'selected' : ''}>Mute</option>
+                        <option value="kick" ${config.warning_threshold_action === 'kick' ? 'selected' : ''}>Kick</option>
+                        <option value="ban" ${config.warning_threshold_action === 'ban' ? 'selected' : ''}>Ban</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium mb-2">Duration (seconds)</label>
+                      <input type="number" name="warning_threshold_duration" value="${config.warning_threshold_duration || 3600}" min="0"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 class="text-sm font-medium mb-3">Anti-Raid Protection</h3>
+                  <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded mb-3">
+                    <span class="text-sm">Enable Anti-Raid</span>
+                    <input type="checkbox" name="antiraid_enabled" ${config.antiraid_enabled ? 'checked' : ''} class="w-4 h-4">
+                  </label>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-sm font-medium mb-2">Join Threshold</label>
+                      <input type="number" name="antiraid_join_threshold" value="${config.antiraid_join_threshold || 5}" min="1"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium mb-2">Time Window (seconds)</label>
+                      <input type="number" name="antiraid_join_window" value="${config.antiraid_join_window || 10}" min="1"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                      <label class="block text-sm font-medium mb-2">Action</label>
+                      <select name="antiraid_action" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                        <option value="kick" ${config.antiraid_action === 'kick' ? 'selected' : ''}>Kick</option>
+                        <option value="ban" ${config.antiraid_action === 'ban' ? 'selected' : ''}>Ban</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tickets Module -->
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">🎫 Ticket System</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Ticket Category ID</label>
+                  <input type="text" name="ticket_category_id" value="${config.ticket_category_id || ''}" placeholder="Category ID for ticket channels"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Right-click a category → Copy Category ID (Developer Mode must be enabled)</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Support Role ID</label>
+                  <input type="text" name="ticket_support_role_id" value="${config.ticket_support_role_id || ''}" placeholder="Role ID for ticket support staff"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Right-click a role → Copy Role ID</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Ticket Log Channel ID</label>
+                  <input type="text" name="ticket_log_channel_id" value="${config.ticket_log_channel_id || ''}" placeholder="Channel ID for ticket logs"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Channel where ticket transcripts and logs will be sent</p>
+                </div>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Send Transcript to User via DM</span>
+                  <input type="checkbox" name="ticket_dm_transcript" ${config.ticket_dm_transcript !== false ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Ticket Open Message</label>
+                  <div class="space-y-2">
+                    <div class="flex space-x-2">
+                      <button type="button" class="toggle-message-type px-3 py-1.5 text-xs rounded bg-indigo-600 hover:bg-indigo-700" data-type="ticket-open">
+                        Switch to Embed Builder
+                      </button>
+                    </div>
+                    <div class="message-text-editor" data-type="ticket-open">
+                      <textarea name="ticket_open_message" rows="4"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${config.ticket_open_message || 'Welcome {user}!\\n\\n**Subject:** {subject}\\n\\nA staff member will be with you shortly. Please describe your issue in detail.'}</textarea>
+                      <p class="text-xs text-zinc-400 mt-1">Use {user} for user mention, {subject} for ticket subject. Use \\n for line breaks.</p>
+                    </div>
+                    <div class="message-embed-editor hidden" data-type="ticket-open" id="ticket-open-embed-builder"></div>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Ticket Close Message</label>
+                  <div class="space-y-2">
+                    <div class="flex space-x-2">
+                      <button type="button" class="toggle-message-type px-3 py-1.5 text-xs rounded bg-indigo-600 hover:bg-indigo-700" data-type="ticket-close">
+                        Switch to Embed Builder
+                      </button>
+                    </div>
+                    <div class="message-text-editor" data-type="ticket-close">
+                      <textarea name="ticket_close_message" rows="2"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${config.ticket_close_message || 'This ticket has been closed by {closer}.'}</textarea>
+                      <p class="text-xs text-zinc-400 mt-1">Use {closer} for the staff member who closed the ticket</p>
+                    </div>
+                    <div class="message-embed-editor hidden" data-type="ticket-close" id="ticket-close-embed-builder"></div>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">DM Transcript Message</label>
+                  <div class="space-y-2">
+                    <div class="flex space-x-2">
+                      <button type="button" class="toggle-message-type px-3 py-1.5 text-xs rounded bg-indigo-600 hover:bg-indigo-700" data-type="ticket-dm">
+                        Switch to Embed Builder
+                      </button>
+                    </div>
+                    <div class="message-text-editor" data-type="ticket-dm">
+                      <textarea name="ticket_dm_message" rows="4"
+                        class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${config.ticket_dm_message || 'Your ticket in **{server}** has been closed.\\n\\n**Subject:** {subject}\\n**Closed by:** {closer}\\n\\nA transcript of your ticket has been attached for your records.'}</textarea>
+                      <p class="text-xs text-zinc-400 mt-1">Use {user} for user mention, {server} for server name, {subject} for ticket subject, {closer} for closer tag. Use \\n for line breaks.</p>
+                    </div>
+                    <div class="message-embed-editor hidden" data-type="ticket-dm" id="ticket-dm-embed-builder"></div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Max Open Tickets per User</label>
+                    <input type="number" name="ticket_max_open" value="${config.ticket_max_open || 1}" min="1" max="10"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <p class="text-xs text-zinc-400 mt-1">Maximum number of open tickets a user can have at once</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Ticket Naming Format</label>
+                    <select name="ticket_naming_format" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                      <option value="username" ${config.ticket_naming_format === 'username' ? 'selected' : ''}>ticket-username</option>
+                      <option value="number" ${config.ticket_naming_format === 'number' ? 'selected' : ''}>ticket-1</option>
+                    </select>
+                    <p class="text-xs text-zinc-400 mt-1">Format for ticket channel names</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Logging Module -->
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">📝 Logging</h2>
+              <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Audit Log Channel ID</label>
+                <input type="text" name="audit_log_channel_id" value="${config.audit_log_channel_id || ''}" placeholder="Channel ID for audit logs"
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                <p class="text-xs text-zinc-400 mt-1">Right-click a channel → Copy Channel ID (Developer Mode must be enabled)</p>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Message Edits</span>
+                  <input type="checkbox" name="log_message_edits" ${config.log_message_edits ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Message Deletes</span>
+                  <input type="checkbox" name="log_message_deletes" ${config.log_message_deletes ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Member Join</span>
+                  <input type="checkbox" name="log_member_join" ${config.log_member_join ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Member Leave</span>
+                  <input type="checkbox" name="log_member_leave" ${config.log_member_leave ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Role Changes</span>
+                  <input type="checkbox" name="log_role_changes" ${config.log_role_changes ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Voice Activity</span>
+                  <input type="checkbox" name="log_voice_activity" ${config.log_voice_activity ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Channel Events</span>
+                  <input type="checkbox" name="log_channel_events" ${config.log_channel_events ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Server Events</span>
+                  <input type="checkbox" name="log_server_events" ${config.log_server_events ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Role Events</span>
+                  <input type="checkbox" name="log_role_events" ${config.log_role_events ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Ban Events</span>
+                  <input type="checkbox" name="log_ban_events" ${config.log_ban_events ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm">Log Invite Events</span>
+                  <input type="checkbox" name="log_invite_events" ${config.log_invite_events ? 'checked' : ''} class="w-4 h-4">
+                </label>
+              </div>
+            </div>
+
+            <!-- Starboard Module -->
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">⭐ Starboard</h2>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Starboard Channel ID</label>
+                  <input type="text" name="starboard_channel_id" value="${config.starboard_channel_id || ''}" placeholder="Channel ID for starboard"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Channel where starred messages will be posted</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Star Threshold</label>
+                  <input type="number" name="starboard_threshold" value="${config.starboard_threshold || 3}" min="1"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Number of ⭐ reactions needed</p>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded font-medium transition w-full md:w-auto">
+              Save All Changes
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    function renderTicketsTab() {
+      const tickets = guildData.tickets || [];
+      return `
+        <div class="bg-zinc-800 rounded-lg">
+          <div class="p-6 border-b border-zinc-700">
+            <h2 class="text-xl font-bold">All Tickets</h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-zinc-900">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">ID</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">User</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Subject</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Status</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Created</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-700">
+                ${tickets.length === 0 ? '<tr><td colspan="6" class="px-6 py-8 text-center text-zinc-400">No tickets found</td></tr>' : tickets.map(t => `
+                  <tr class="hover:bg-zinc-750">
+                    <td class="px-6 py-4 text-sm font-mono">#${t.id}</td>
+                    <td class="px-6 py-4 text-sm">${renderUserTag(t.user_id, true)}</td>
+                    <td class="px-6 py-4 text-sm">${t.subject || 'No subject'}</td>
+                    <td class="px-6 py-4 text-sm">
+                      <span class="px-2 py-1 text-xs rounded ${t.status === 'open' ? 'bg-green-900/30 text-green-400' : 'bg-zinc-700 text-zinc-400'}">
+                        ${t.status}
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-zinc-400">${new Date(t.created_at * 1000).toLocaleDateString()}</td>
+                    <td class="px-6 py-4 text-sm">
+                      <button onclick="viewTicketTranscript(${t.id})" class="px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 rounded transition-colors">
+                        View Transcript
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderWarningsTab() {
+      const warnings = guildData.warnings || [];
+      setTimeout(() => {
+        const searchInput = document.getElementById('warnings-search');
+        if (searchInput) {
+          searchInput.addEventListener('input', (e) => {
+            filterWarnings(e.target.value.toLowerCase());
+          });
+        }
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg">
+          <div class="p-6 border-b border-zinc-700">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-bold">All Warnings</h2>
+              <div class="flex-1 max-w-md ml-6">
+                <input
+                  type="text"
+                  id="warnings-search"
+                  placeholder="Search by User ID, Moderator ID, or Reason..."
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-zinc-900">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">ID</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">User</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Moderator</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Reason</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Date</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Action</th>
+                </tr>
+              </thead>
+              <tbody id="warnings-tbody" class="divide-y divide-zinc-700">
+                ${warnings.length === 0 ? '<tr><td colspan="6" class="px-6 py-8 text-center text-zinc-400">No warnings found</td></tr>' : warnings.map(w => `
+                  <tr class="hover:bg-zinc-750 warning-row" data-user-id="${w.user_id}" data-moderator-id="${w.moderator_id}" data-reason="${(w.reason || '').toLowerCase()}">
+                    <td class="px-6 py-4 text-sm font-mono">#${w.id}</td>
+                    <td class="px-6 py-4 text-sm">${renderUserTag(w.user_id, true)}</td>
+                    <td class="px-6 py-4 text-sm">${renderUserTag(w.moderator_id)}</td>
+                    <td class="px-6 py-4 text-sm">${w.reason || 'No reason'}</td>
+                    <td class="px-6 py-4 text-sm text-zinc-400">${new Date(w.created_at * 1000).toLocaleDateString()}</td>
+                    <td class="px-6 py-4 text-sm">
+                      <button onclick="removeWarning(${w.id})" class="text-red-400 hover:text-red-300 text-xs">Remove</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLogsTab() {
+      const logs = guildData.logs || [];
+      setTimeout(() => {
+        const searchInput = document.getElementById('logs-search');
+        if (searchInput) {
+          searchInput.addEventListener('input', (e) => {
+            filterLogs(e.target.value.toLowerCase());
+          });
+        }
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg">
+          <div class="p-6 border-b border-zinc-700">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-bold">Audit Logs</h2>
+              <div class="flex-1 max-w-md ml-6">
+                <input
+                  type="text"
+                  id="logs-search"
+                  placeholder="Search by Action, Moderator ID, Target ID, or Reason..."
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-zinc-900">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Action</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Moderator</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Target</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Reason</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Date</th>
+                </tr>
+              </thead>
+              <tbody id="logs-tbody" class="divide-y divide-zinc-700">
+                ${logs.length === 0 ? '<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-400">No logs found</td></tr>' : logs.map(log => `
+                  <tr class="hover:bg-zinc-750 log-row" data-action="${(log.action_type || '').toLowerCase()}" data-moderator-id="${log.moderator_id}" data-target-id="${log.target_id || ''}" data-reason="${(log.reason || '').toLowerCase()}">
+                    <td class="px-6 py-4 text-sm">
+                      <span class="px-2 py-1 text-xs rounded bg-zinc-700">${formatActionType(log.action_type)}</span>
+                    </td>
+                    <td class="px-6 py-4 text-sm">${renderUserTag(log.moderator_id)}</td>
+                    <td class="px-6 py-4 text-sm">${log.target_id ? renderUserTag(log.target_id) : '<span class="text-zinc-500">N/A</span>'}</td>
+                    <td class="px-6 py-4 text-sm">${log.reason || 'No reason provided'}</td>
+                    <td class="px-6 py-4 text-sm text-zinc-400">${new Date(log.timestamp * 1000).toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAutomodTab() {
+      const automod = guildData.automod || {};
+      const config = guildData.config || {};
+      return `
+        <div class="max-w-4xl mx-auto space-y-6">
+          <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-bold">🛡️ AutoMod Configuration</h1>
+            <button type="button" onclick="switchTab('docs')" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm transition">📚 View Docs</button>
+          </div>
+
+          <form id="automod-form" class="space-y-6">
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">🚫 Spam Detection</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Spam Detection</span>
+                  <input type="checkbox" name="spam_enabled" ${automod.spam_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Messages Count</label>
+                    <input type="number" name="automod_spam_count" value="${config.automod_spam_count || 5}" min="2" max="20"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <p class="text-xs text-zinc-400 mt-1">Number of duplicate messages to trigger spam filter</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Time Window (seconds)</label>
+                    <input type="number" name="automod_spam_interval" value="${config.automod_spam_interval || 5}" min="1" max="60"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <p class="text-xs text-zinc-400 mt-1">Time window to detect spam messages</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">🔗 Link Filtering</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Link Filtering</span>
+                  <input type="checkbox" name="links_enabled" ${automod.links_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Allowed Domains</label>
+                  <textarea name="automod_allowed_links" rows="4" placeholder="youtube.com&#10;twitter.com&#10;github.com"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${config.automod_allowed_links || ''}</textarea>
+                  <p class="text-xs text-zinc-400 mt-1">One domain per line. Users can post links from these domains. Leave empty to block all links.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">📢 Caps Lock Detection</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Caps Detection</span>
+                  <input type="checkbox" name="caps_enabled" ${automod.caps_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Caps Percentage (%)</label>
+                    <input type="number" name="automod_caps_percentage" value="${config.automod_caps_percentage || 70}" min="50" max="100"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <p class="text-xs text-zinc-400 mt-1">Percentage of caps to trigger filter (default: 70%)</p>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium mb-2">Minimum Message Length</label>
+                    <input type="number" name="automod_caps_min_length" value="${config.automod_caps_min_length || 10}" min="5" max="50"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <p class="text-xs text-zinc-400 mt-1">Minimum characters to check for caps (default: 10)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">@ Mention Spam</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Mention Spam Detection</span>
+                  <input type="checkbox" name="mentions_enabled" ${automod.mentions_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Maximum Mentions</label>
+                  <input type="number" name="automod_max_mentions" value="${config.automod_max_mentions || 5}" min="1" max="20"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">Maximum number of @mentions allowed in a single message</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">🤬 Profanity Filter</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Enable Profanity Filter</span>
+                  <input type="checkbox" name="profanity_enabled" ${automod.profanity_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Profanity Preset</label>
+                  <select name="automod_profanity_preset" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <option value="off" ${(config.automod_profanity_preset || 'moderate') === 'off' ? 'selected' : ''}>Off - No preset filtering</option>
+                    <option value="slurs_only" ${(config.automod_profanity_preset || 'moderate') === 'slurs_only' ? 'selected' : ''}>Slurs Only - Only slurs and hate speech</option>
+                    <option value="moderate" ${(config.automod_profanity_preset || 'moderate') === 'moderate' ? 'selected' : ''}>Moderate - Most profanity and all slurs (Default)</option>
+                    <option value="strict" ${(config.automod_profanity_preset || 'moderate') === 'strict' ? 'selected' : ''}>Strict - All profanity, slurs, and sexual content</option>
+                  </select>
+                  <p class="text-xs text-zinc-400 mt-1">Choose a built-in profanity filter preset. This will be combined with your custom list below.</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Custom Profanity List</label>
+                  <textarea name="automod_profanity_list" rows="6" placeholder="badword1&#10;badword2&#10;badword3"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${config.automod_profanity_list || ''}</textarea>
+                  <p class="text-xs text-zinc-400 mt-1">One word per line. Add custom words/phrases to filter. Case-insensitive.</p>
+                  <p class="text-xs text-yellow-400 mt-2">💡 Custom words are added ON TOP of the selected preset above.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 p-6 rounded-lg">
+              <h2 class="text-xl font-bold mb-4">📨 Invite Blocking</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Block Discord Invites</span>
+                  <input type="checkbox" name="invites_enabled" ${automod.invites_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Allowed Server IDs</label>
+                  <textarea name="automod_allow_invites_list" rows="4" placeholder="123456789012345678&#10;987654321098765432"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${config.automod_allow_invites_list || ''}</textarea>
+                  <p class="text-xs text-zinc-400 mt-1">One server ID per line. Invites to these servers will be allowed. Leave empty to block all invites.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end">
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-8 py-3 rounded font-medium transition">
+                💾 Save AutoMod Settings
+              </button>
+            </div>
+          </form>
+        </div>
+      `;
+    }
+
+    function renderRulesTab() {
+      const rules = guildData.rules || [];
+      return `
+        <div class="space-y-6">
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">Add New Rule</h2>
+            <form id="add-rule-form" class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-2">Rule Title</label>
+                <input type="text" name="title" required class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2">
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2">Description</label>
+                <textarea name="description" required rows="3" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2"></textarea>
+              </div>
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded font-medium transition">
+                Add Rule
+              </button>
+            </form>
+          </div>
+
+          <div class="bg-zinc-800 p-6 rounded-lg">
+            <h2 class="text-xl font-bold mb-4">Server Rules</h2>
+            ${rules.length === 0 ? '<p class="text-zinc-400">No rules configured</p>' : `
+              <div class="space-y-4">
+                ${rules.map(rule => `
+                  <div class="border border-zinc-700 rounded-lg p-4">
+                    <div class="flex justify-between items-start">
+                      <div>
+                        <h3 class="font-bold">Rule #${rule.rule_number}: ${rule.title}</h3>
+                        <p class="text-sm text-zinc-400 mt-1">${rule.description}</p>
+                      </div>
+                      <button onclick="deleteRule(${rule.id})" class="text-red-400 hover:text-red-300 text-sm">Delete</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    async function removeWarning(warningId) {
+      if (!confirm('Are you sure you want to remove this warning?')) return;
+      const result = await API.deleteWarning(currentGuild, warningId);
+      if (result.success) {
+        await switchTab('warnings');
+      }
+    }
+
+    async function deleteRule(ruleId) {
+      if (!confirm('Are you sure you want to delete this rule?')) return;
+      const result = await API.deleteRule(currentGuild, ruleId);
+      if (result.success) {
+        await switchTab('rules');
+      }
+    }
+
+    document.addEventListener('submit', async (e) => {
+      if (e.target.id === 'config-form') {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const config = {
+          prefix: formData.get('prefix'),
+          locale: formData.get('locale'),
+          welcome_enabled: formData.get('welcome_enabled') === 'on',
+          welcome_channel_id: formData.get('welcome_channel_id') || null,
+          welcome_message: formData.get('welcome_message'),
+          goodbye_enabled: formData.get('goodbye_enabled') === 'on',
+          goodbye_channel_id: formData.get('goodbye_channel_id') || null,
+          goodbye_message: formData.get('goodbye_message'),
+          xp_enabled: formData.get('xp_enabled') === 'on',
+          xp_min: parseInt(formData.get('xp_min')) || 15,
+          xp_max: parseInt(formData.get('xp_max')) || 25,
+          xp_cooldown: parseInt(formData.get('xp_cooldown')) || 60,
+          level_up_enabled: formData.get('level_up_enabled') === 'on',
+          level_up_channel_id: formData.get('level_up_channel_id') || null,
+          level_up_message: formData.get('level_up_message'),
+          warning_threshold_enabled: formData.get('warning_threshold_enabled') === 'on',
+          warning_threshold_count: parseInt(formData.get('warning_threshold_count')) || 3,
+          warning_threshold_action: formData.get('warning_threshold_action'),
+          warning_threshold_duration: parseInt(formData.get('warning_threshold_duration')) || 3600,
+          antiraid_enabled: formData.get('antiraid_enabled') === 'on',
+          antiraid_join_threshold: parseInt(formData.get('antiraid_join_threshold')) || 5,
+          antiraid_join_window: parseInt(formData.get('antiraid_join_window')) || 10,
+          antiraid_action: formData.get('antiraid_action'),
+          mod_log_channel_id: formData.get('mod_log_channel_id') || null,
+          ticket_category_id: formData.get('ticket_category_id') || null,
+          ticket_support_role_id: formData.get('ticket_support_role_id') || null,
+          ticket_log_channel_id: formData.get('ticket_log_channel_id') || null,
+          ticket_dm_transcript: formData.get('ticket_dm_transcript') === 'on',
+          ticket_open_message: formData.get('ticket_open_message'),
+          ticket_close_message: formData.get('ticket_close_message'),
+          ticket_dm_message: formData.get('ticket_dm_message'),
+          welcome_embed: window.embedBuilders?.welcome?.getData() ? JSON.stringify(window.embedBuilders.welcome.getData()) : null,
+          goodbye_embed: window.embedBuilders?.goodbye?.getData() ? JSON.stringify(window.embedBuilders.goodbye.getData()) : null,
+          ticket_open_embed: window.embedBuilders?.ticketOpen?.getData() ? JSON.stringify(window.embedBuilders.ticketOpen.getData()) : null,
+          ticket_close_embed: window.embedBuilders?.ticketClose?.getData() ? JSON.stringify(window.embedBuilders.ticketClose.getData()) : null,
+          ticket_dm_embed: window.embedBuilders?.ticketDm?.getData() ? JSON.stringify(window.embedBuilders.ticketDm.getData()) : null,
+          ticket_max_open: parseInt(formData.get('ticket_max_open')) || 1,
+          ticket_naming_format: formData.get('ticket_naming_format'),
+          audit_log_channel_id: formData.get('audit_log_channel_id') || null,
+          log_message_edits: formData.get('log_message_edits') === 'on',
+          log_message_deletes: formData.get('log_message_deletes') === 'on',
+          log_member_join: formData.get('log_member_join') === 'on',
+          log_member_leave: formData.get('log_member_leave') === 'on',
+          log_role_changes: formData.get('log_role_changes') === 'on',
+          log_voice_activity: formData.get('log_voice_activity') === 'on',
+          log_channel_events: formData.get('log_channel_events') === 'on',
+          log_server_events: formData.get('log_server_events') === 'on',
+          log_role_events: formData.get('log_role_events') === 'on',
+          log_ban_events: formData.get('log_ban_events') === 'on',
+          log_invite_events: formData.get('log_invite_events') === 'on',
+          starboard_channel_id: formData.get('starboard_channel_id') || null,
+          starboard_threshold: parseInt(formData.get('starboard_threshold')) || 3
+        };
+        const result = await API.updateGuildConfig(currentGuild, config);
+        if (result.success) {
+          alert('Configuration saved!');
+          await loadGuildData();
+        }
+      } else if (e.target.id === 'automod-form') {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+
+        const automodConfig = {
+          spam_enabled: formData.get('spam_enabled') === 'on',
+          links_enabled: formData.get('links_enabled') === 'on',
+          caps_enabled: formData.get('caps_enabled') === 'on',
+          mentions_enabled: formData.get('mentions_enabled') === 'on',
+          profanity_enabled: formData.get('profanity_enabled') === 'on',
+          invites_enabled: formData.get('invites_enabled') === 'on'
+        };
+
+        const guildConfig = {
+          automod_spam_count: parseInt(formData.get('automod_spam_count')) || 5,
+          automod_spam_interval: parseInt(formData.get('automod_spam_interval')) || 5,
+          automod_allowed_links: formData.get('automod_allowed_links') || null,
+          automod_caps_percentage: parseInt(formData.get('automod_caps_percentage')) || 70,
+          automod_caps_min_length: parseInt(formData.get('automod_caps_min_length')) || 10,
+          automod_max_mentions: parseInt(formData.get('automod_max_mentions')) || 5,
+          automod_profanity_preset: formData.get('automod_profanity_preset') || 'moderate',
+          automod_profanity_list: formData.get('automod_profanity_list') || null,
+          automod_allow_invites_list: formData.get('automod_allow_invites_list') || null
+        };
+
+        const [automodResult, configResult] = await Promise.all([
+          API.updateAutomod(currentGuild, automodConfig),
+          API.updateGuildConfig(currentGuild, guildConfig)
+        ]);
+
+        if (automodResult.success && configResult.success) {
+          alert('AutoMod settings saved!');
+          await loadGuildData();
+        }
+      } else if (e.target.id === 'add-rule-form') {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const result = await API.addRule(currentGuild, formData.get('title'), formData.get('description'));
+        if (result.success) {
+          e.target.reset();
+          await switchTab('rules');
+        }
+      }
+    });
+
+    function initializeEmbedBuilders(config) {
+      window.embedBuilders = {};
+
+      const placeholderMap = {
+        welcome: ['{user}', '{server}'],
+        goodbye: ['{user}', '{server}'],
+        ticketOpen: ['{user}', '{subject}'],
+        ticketClose: ['{closer}'],
+        ticketDm: ['{user}', '{server}', '{subject}', '{closer}']
+      };
+
+      const builders = [
+        { key: 'welcome', containerId: 'welcome-embed-builder', embedKey: 'welcome_embed', type: 'welcome' },
+        { key: 'goodbye', containerId: 'goodbye-embed-builder', embedKey: 'goodbye_embed', type: 'goodbye' },
+        { key: 'ticketOpen', containerId: 'ticket-open-embed-builder', embedKey: 'ticket_open_embed', type: 'ticket-open' },
+        { key: 'ticketClose', containerId: 'ticket-close-embed-builder', embedKey: 'ticket_close_embed', type: 'ticket-close' },
+        { key: 'ticketDm', containerId: 'ticket-dm-embed-builder', embedKey: 'ticket_dm_embed', type: 'ticket-dm' }
+      ];
+
+      builders.forEach(({ key, containerId, embedKey, type }) => {
+        let initialData = { enabled: false };
+        if (config[embedKey]) {
+          try {
+            initialData = JSON.parse(config[embedKey]);
+            initialData.enabled = true;
+          } catch (e) {
+            console.error(`Failed to parse ${embedKey}:`, e);
+          }
+        }
+
+        window.embedBuilders[key] = new EmbedBuilder(containerId, {
+          initialData,
+          placeholders: placeholderMap[key]
+        });
+      });
+
+      document.querySelectorAll('.toggle-message-type').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const type = e.target.dataset.type;
+          const textEditor = document.querySelector(`.message-text-editor[data-type="${type}"]`);
+          const embedEditor = document.querySelector(`.message-embed-editor[data-type="${type}"]`);
+
+          if (textEditor.classList.contains('hidden')) {
+            textEditor.classList.remove('hidden');
+            embedEditor.classList.add('hidden');
+            e.target.textContent = 'Switch to Embed Builder';
+          } else {
+            textEditor.classList.add('hidden');
+            embedEditor.classList.remove('hidden');
+            e.target.textContent = 'Switch to Text Message';
+          }
+        });
+      });
+    }
+
+    function renderChatTab() {
+      setTimeout(() => {
+        if (!window.chatViewer) {
+          window.chatViewer = new ChatViewer();
+        }
+        window.chatViewer.init();
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">💬 Live Chat Viewer</h2>
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Select Channel</label>
+            <select id="chat-channel-selector" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2">
+              <option value="">Loading channels...</option>
+            </select>
+          </div>
+          <div id="chat-messages" class="bg-zinc-900 rounded-lg p-4 h-96 overflow-y-auto scrollbar-thin"></div>
+        </div>
+      `;
+    }
+
+    function renderPermissionsTab() {
+      setTimeout(() => {
+        if (!window.permissionManager) {
+          window.permissionManager = new PermissionManager();
+        }
+        window.permissionManager.init();
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">🔒 Permission Manager</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 class="text-lg font-semibold mb-4">Server Roles</h3>
+              <div id="permission-role-list" class="bg-zinc-900 rounded-lg max-h-96 overflow-y-auto scrollbar-thin"></div>
+            </div>
+            <div>
+              <div id="permission-role-info"></div>
+              <div id="permission-grid" class="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto scrollbar-thin"></div>
+              <button id="permission-save-btn" class="hidden mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAppealsTab() {
+      setTimeout(() => {
+        if (!window.moderationQueue) {
+          window.moderationQueue = new ModerationQueue();
+        }
+        window.moderationQueue.init();
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">📋 Moderation Queue</h2>
+          <div class="flex gap-2 mb-4">
+            <button data-appeal-filter="pending" class="px-4 py-2 rounded bg-blue-600 text-white">Pending</button>
+            <button data-appeal-filter="approved" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Approved</button>
+            <button data-appeal-filter="denied" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Denied</button>
+            <button data-appeal-filter="all" class="px-4 py-2 rounded bg-gray-200 text-gray-700">All</button>
+          </div>
+          <div id="appeals-list" class="space-y-3"></div>
+        </div>
+      `;
+    }
+
+    function renderAnalyticsTab() {
+      setTimeout(() => {
+        if (!window.analyticsCharts) {
+          window.analyticsCharts = new AnalyticsCharts();
+        }
+        window.analyticsCharts.init();
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">📈 Analytics</h2>
+          <div class="flex gap-2 mb-6">
+            <button data-time-range="24h" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Last 24h</button>
+            <button data-time-range="7d" class="px-4 py-2 rounded bg-blue-600 text-white">Last 7 Days</button>
+            <button data-time-range="30d" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Last 30 Days</button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-zinc-900 p-4 rounded-lg">
+              <h3 class="font-semibold mb-3">Messages</h3>
+              <div style="height: 300px; position: relative;">
+                <canvas id="messages-chart"></canvas>
+              </div>
+            </div>
+            <div class="bg-zinc-900 p-4 rounded-lg">
+              <h3 class="font-semibold mb-3">Members</h3>
+              <div style="height: 300px; position: relative;">
+                <canvas id="members-chart"></canvas>
+              </div>
+            </div>
+            <div class="bg-zinc-900 p-4 rounded-lg">
+              <h3 class="font-semibold mb-3">Commands Used</h3>
+              <div style="height: 300px; position: relative;">
+                <canvas id="commands-chart"></canvas>
+              </div>
+            </div>
+            <div class="bg-zinc-900 p-4 rounded-lg">
+              <h3 class="font-semibold mb-3">Moderation Actions</h3>
+              <div style="height: 300px; position: relative;">
+                <canvas id="moderation-chart"></canvas>
+              </div>
+            </div>
+            <div class="bg-zinc-900 p-4 rounded-lg">
+              <h3 class="font-semibold mb-3">Top Active Users</h3>
+              <div id="top-users-list" class="max-h-64 overflow-y-auto scrollbar-thin"></div>
+            </div>
+            <div class="bg-zinc-900 p-4 rounded-lg">
+              <h3 class="font-semibold mb-3">Most Active Channels</h3>
+              <div id="top-channels-list" class="max-h-64 overflow-y-auto scrollbar-thin"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBulkTab() {
+      setTimeout(() => {
+        if (!window.bulkActions) {
+          window.bulkActions = new BulkActions();
+        }
+        window.bulkActions.init();
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">⚡ Bulk Actions</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 class="text-lg font-semibold mb-4">Select Action</h3>
+              <div class="flex gap-2 mb-4">
+                <button data-bulk-action="ban" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Ban</button>
+                <button data-bulk-action="kick" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Kick</button>
+                <button data-bulk-action="role_add" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Add Role</button>
+                <button data-bulk-action="role_remove" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Remove Role</button>
+              </div>
+              <div id="bulk-role-selector" class="hidden mb-4">
+                <label class="block text-sm font-medium mb-2">Select Role</label>
+                <select id="bulk-role-select" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2">
+                  <option value="">Select a role</option>
+                </select>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">User IDs (comma or newline separated)</label>
+                <textarea id="bulk-user-input" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 h-32" placeholder="Enter user IDs..."></textarea>
+                <button onclick="window.bulkActions.parseUserInput()" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Add Users</button>
+              </div>
+              <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Reason</label>
+                <input type="text" id="bulk-reason" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2" placeholder="Reason for action">
+              </div>
+              <div class="mb-4">
+                <h4 class="text-sm font-medium mb-2">Selected Users (<span id="bulk-selected-count">0</span>)</h4>
+                <div id="bulk-selected-users" class="bg-zinc-900 rounded p-3 max-h-48 overflow-y-auto space-y-2"></div>
+              </div>
+              <button id="bulk-execute-btn" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed">
+                Execute Action
+              </button>
+            </div>
+            <div>
+              <h3 class="text-lg font-semibold mb-4">Action History</h3>
+              <div id="bulk-history-list" class="bg-zinc-900 rounded-lg max-h-96 overflow-y-auto scrollbar-thin"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderBackupsTab() {
+      setTimeout(() => {
+        if (!window.backupManager) {
+          window.backupManager = new BackupManager();
+        }
+        window.backupManager.init();
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">💾 Backup Management</h2>
+          <div class="mb-6">
+            <button id="backup-create-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
+              Create New Backup
+            </button>
+          </div>
+          <div id="backups-list" class="space-y-4"></div>
+        </div>
+      `;
+    }
+
+    function renderDashboardAuditTab() {
+      setTimeout(() => {
+        loadDashboardAudit();
+      }, 100);
+
+      return `
+        <div class="bg-zinc-800 rounded-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">🔐 Dashboard Security Logs</h2>
+          <p class="text-zinc-400 mb-6">Track all dashboard access and actions for security auditing.</p>
+
+          <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">Filter by User</label>
+              <input
+                type="text"
+                id="audit-filter-user"
+                placeholder="User ID..."
+                class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-2">Filter by Action</label>
+              <select
+                id="audit-filter-action"
+                class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm"
+              >
+                <option value="">All Actions</option>
+                <option value="LOGIN">Login</option>
+                <option value="LOGOUT">Logout</option>
+                <option value="ACCESS_GUILD">Access Guild</option>
+                <option value="VIEW_CONFIG">View Config</option>
+                <option value="UPDATE_CONFIG">Update Config</option>
+                <option value="VIEW_WARNINGS">View Warnings</option>
+                <option value="DELETE_WARNING">Delete Warning</option>
+                <option value="UPDATE_AUTOMOD">Update AutoMod</option>
+                <option value="EXECUTE_BULK_ACTION">Bulk Action</option>
+                <option value="CREATE_BACKUP">Create Backup</option>
+                <option value="DELETE_BACKUP">Delete Backup</option>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button
+                onclick="loadDashboardAudit()"
+                class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm transition"
+              >
+                Apply Filters
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-zinc-900 rounded-lg p-4 mb-6">
+            <h3 class="font-semibold mb-3">Action Summary</h3>
+            <div id="audit-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div class="text-center text-zinc-500">Loading...</div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-zinc-900">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Time</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">User</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Action</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Guild</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">IP Address</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody id="audit-logs-tbody" class="divide-y divide-zinc-700">
+                <tr><td colspan="6" class="px-6 py-8 text-center text-zinc-400">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadDashboardAudit() {
+      try {
+        const userId = document.getElementById('audit-filter-user')?.value || '';
+        const actionType = document.getElementById('audit-filter-action')?.value || '';
+
+        const params = new URLSearchParams();
+        if (userId) params.append('userId', userId);
+        if (actionType) params.append('actionType', actionType);
+        params.append('limit', '100');
+
+        const [logsRes, statsRes] = await Promise.all([
+          fetch(`/api/dashboard-audit?${params.toString()}`, { credentials: 'include' }),
+          fetch(`/api/dashboard-audit/stats`, { credentials: 'include' })
+        ]);
+
+        const logsResult = await logsRes.json();
+        const statsResult = await statsRes.json();
+
+        if (statsResult.success) {
+          const statsHtml = statsResult.data.slice(0, 4).map(stat => `
+            <div class="text-center">
+              <div class="text-2xl font-bold text-blue-400">${stat.count}</div>
+              <div class="text-xs text-zinc-500">${stat.action_type.replace(/_/g, ' ')}</div>
+            </div>
+          `).join('');
+          document.getElementById('audit-stats').innerHTML = statsHtml || '<div class="text-zinc-500">No data</div>';
+        }
+
+        if (logsResult.success) {
+          const tbody = document.getElementById('audit-logs-tbody');
+          if (logsResult.data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-zinc-400">No audit logs found</td></tr>';
+            return;
+          }
+
+          const logsHtml = logsResult.data.map(log => `
+            <tr class="hover:bg-zinc-750">
+              <td class="px-6 py-4 text-sm text-zinc-400">
+                ${new Date(log.timestamp * 1000).toLocaleString()}
+              </td>
+              <td class="px-6 py-4 text-sm">
+                <div>${log.username}#${log.discriminator}</div>
+                <div class="text-xs text-zinc-500">${log.user_id}</div>
+              </td>
+              <td class="px-6 py-4 text-sm">
+                <span class="px-2 py-1 text-xs rounded ${getActionColor(log.action_type)}">
+                  ${log.action_type.replace(/_/g, ' ')}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-sm text-zinc-400">
+                ${log.guild_name || 'N/A'}
+              </td>
+              <td class="px-6 py-4 text-sm text-zinc-500 font-mono text-xs">
+                ${log.ip_address || 'N/A'}
+              </td>
+              <td class="px-6 py-4 text-sm">
+                ${log.success ? '<span class="text-green-400">✓</span>' : '<span class="text-red-400">✗</span>'}
+              </td>
+            </tr>
+          `).join('');
+
+          tbody.innerHTML = logsHtml;
+        }
+      } catch (error) {
+        console.error('Failed to load dashboard audit:', error);
+        document.getElementById('audit-logs-tbody').innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-red-400">Failed to load audit logs</td></tr>';
+      }
+    }
+
+    function getActionColor(actionType) {
+      const colors = {
+        LOGIN: 'bg-green-900/30 text-green-400',
+        LOGOUT: 'bg-gray-900/30 text-gray-400',
+        ACCESS_GUILD: 'bg-blue-900/30 text-blue-400',
+        UPDATE_CONFIG: 'bg-yellow-900/30 text-yellow-400',
+        DELETE_WARNING: 'bg-red-900/30 text-red-400',
+        EXECUTE_BULK_ACTION: 'bg-purple-900/30 text-purple-400',
+        CREATE_BACKUP: 'bg-cyan-900/30 text-cyan-400'
+      };
+
+      return colors[actionType] || 'bg-zinc-700 text-zinc-300';
+    }
+
+    function filterWarnings(searchTerm) {
+      const rows = document.querySelectorAll('.warning-row');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const userId = row.getAttribute('data-user-id') || '';
+        const moderatorId = row.getAttribute('data-moderator-id') || '';
+        const reason = row.getAttribute('data-reason') || '';
+
+        const matches = userId.toLowerCase().includes(searchTerm) ||
+                       moderatorId.toLowerCase().includes(searchTerm) ||
+                       reason.includes(searchTerm);
+
+        if (matches || searchTerm === '') {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      const tbody = document.getElementById('warnings-tbody');
+      if (tbody && visibleCount === 0 && searchTerm !== '') {
+        const existingNoResults = tbody.querySelector('.no-results-row');
+        if (!existingNoResults) {
+          const noResultsRow = document.createElement('tr');
+          noResultsRow.className = 'no-results-row';
+          noResultsRow.innerHTML = '<td colspan="6" class="px-6 py-8 text-center text-zinc-400">No warnings match your search</td>';
+          tbody.appendChild(noResultsRow);
+        }
+      } else {
+        const noResultsRow = tbody?.querySelector('.no-results-row');
+        if (noResultsRow) {
+          noResultsRow.remove();
+        }
+      }
+    }
+
+    function filterLogs(searchTerm) {
+      const rows = document.querySelectorAll('.log-row');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const action = row.getAttribute('data-action') || '';
+        const moderatorId = row.getAttribute('data-moderator-id') || '';
+        const targetId = row.getAttribute('data-target-id') || '';
+        const reason = row.getAttribute('data-reason') || '';
+
+        const matches = action.includes(searchTerm) ||
+                       moderatorId.toLowerCase().includes(searchTerm) ||
+                       targetId.toLowerCase().includes(searchTerm) ||
+                       reason.includes(searchTerm);
+
+        if (matches || searchTerm === '') {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      const tbody = document.getElementById('logs-tbody');
+      if (tbody && visibleCount === 0 && searchTerm !== '') {
+        const existingNoResults = tbody.querySelector('.no-results-row');
+        if (!existingNoResults) {
+          const noResultsRow = document.createElement('tr');
+          noResultsRow.className = 'no-results-row';
+          noResultsRow.innerHTML = '<td colspan="5" class="px-6 py-8 text-center text-zinc-400">No logs match your search</td>';
+          tbody.appendChild(noResultsRow);
+        }
+      } else {
+        const noResultsRow = tbody?.querySelector('.no-results-row');
+        if (noResultsRow) {
+          noResultsRow.remove();
+        }
+      }
+    }
+
+    const originalRenderGuildDashboard = renderGuildDashboard;
+    renderGuildDashboard = function() {
+      originalRenderGuildDashboard();
+      if (guildData?.config && (currentTab === 'config' || currentTab === 'overview')) {
+        setTimeout(() => {
+          initializeEmbedBuilders(guildData.config);
+        }, 0);
+      }
+    };
+
+    showMainDashboard();
+  </script>
+</body>
+</html>

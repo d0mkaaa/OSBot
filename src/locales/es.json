@@ -1,0 +1,439 @@
+{
+  "common": {
+    "errors": {
+      "guild_only": "❌ ¡Este comando solo puede usarse en un servidor!",
+      "no_permission": "❌ ¡No tienes permiso para usar este comando!",
+      "bot_no_permission": "❌ ¡No tengo permiso para hacer eso!",
+      "user_not_found": "❌ ¡Usuario no encontrado!",
+      "role_not_found": "❌ ¡Rol no encontrado!",
+      "channel_not_found": "❌ ¡Canal no encontrado!",
+      "message_not_found": "❌ ¡Mensaje no encontrado!",
+      "failed": "❌ ¡Error al ejecutar el comando!"
+    },
+    "success": "✅ ¡Éxito!",
+    "loading": "⏳ Procesando...",
+    "cancelled": "❌ Cancelado.",
+    "case": "📋 Caso",
+    "day": "día",
+    "days": "días"
+  },
+  "commands": {
+    "8ball": {
+      "name": "8ball",
+      "description": "Pregunta a la bola mágica 8",
+      "options": {
+        "question": "La pregunta para hacer"
+      },
+      "responses": [
+        "Es cierto.",
+        "Definitivamente es así.",
+        "Sin duda.",
+        "Sí, definitivamente.",
+        "Puedes confiar en ello.",
+        "Tal como lo veo, sí.",
+        "Muy probablemente.",
+        "Buen pronóstico.",
+        "Sí.",
+        "Las señales apuntan a que sí.",
+        "Respuesta confusa, intenta de nuevo.",
+        "Pregunta más tarde.",
+        "Mejor no decírtelo ahora.",
+        "No puedo predecirlo ahora.",
+        "Concéntrate y pregunta otra vez.",
+        "No cuentes con ello.",
+        "Mi respuesta es no.",
+        "Mis fuentes dicen que no.",
+        "El pronóstico no es bueno.",
+        "Muy dudoso."
+      ]
+    },
+    "poll": {
+      "name": "poll",
+      "description": "Crear y gestionar encuestas",
+      "subcommands": {
+        "start": {
+          "name": "start",
+          "description": "Crear una encuesta",
+          "options": {
+            "question": "La pregunta de la encuesta",
+            "option1": "Primera opción",
+            "option2": "Segunda opción",
+            "option3": "Tercera opción",
+            "option4": "Cuarta opción",
+            "option5": "Quinta opción",
+            "duration": "Duración en minutos (opcional)"
+          }
+        },
+        "end": {
+          "name": "end",
+          "description": "Finalizar una encuesta y mostrar resultados",
+          "options": {
+            "poll_id": "El ID de la encuesta a finalizar"
+          }
+        },
+        "list": {
+          "name": "list",
+          "description": "Listar encuestas recientes"
+        }
+      },
+      "title": "📊 {question}",
+      "ends": "**Finaliza:** <t:{time}:R>",
+      "no_time_limit": "**Sin límite de tiempo** - Usa `/poll end` para cerrar",
+      "created_by": "Encuesta creada por {user}",
+      "created": "✅ ¡Encuesta creada! ID: {id}",
+      "failed_create": "❌ ¡Error al crear el mensaje de la encuesta!",
+      "warning_persist": "⚠️ Encuesta iniciada pero puede no persistir si el bot se reinicia.",
+      "not_found": "❌ ¡Encuesta no encontrada!",
+      "already_ended": "❌ ¡Esta encuesta ya ha finalizado!",
+      "channel_not_found": "❌ ¡No se pudo encontrar el canal de la encuesta!",
+      "message_not_found": "❌ ¡No se pudo encontrar el mensaje de la encuesta!",
+      "ended": "✅ La encuesta #{id} ha finalizado y los resultados han sido publicados!",
+      "failed_end": "❌ ¡Error al finalizar la encuesta!",
+      "no_polls": "❌ No se encontraron encuestas en este servidor.",
+      "list_title": "📋 Encuestas Recientes",
+      "results_title": "📊 Resultados de la Encuesta: {question}",
+      "total_votes": "📈 Votos Totales",
+      "poll_ended": "La encuesta ha finalizado",
+      "status_active": "🔴 Activa",
+      "status_ended": "✅ Finalizada"
+    },
+    "ban": {
+      "name": "ban",
+      "description": "Banear a un usuario del servidor",
+      "options": {
+        "user": "El usuario a banear",
+        "reason": "Razón del ban",
+        "days": "Días de mensajes a eliminar (0-7)"
+      },
+      "cannot_ban_self": "❌ ¡No puedes banearte a ti mismo!",
+      "cannot_ban_bot": "❌ ¡No puedo banearme a mí mismo!",
+      "cannot_ban_owner": "❌ ¡No puedes banear al dueño del servidor!",
+      "higher_role": "❌ ¡No puedes banear a un usuario con un rol igual o superior al tuyo!",
+      "bot_higher_role": "❌ ¡No puedo banear a un usuario con un rol igual o superior al mío!",
+      "no_reason": "Ninguna razón proporcionada",
+      "reason_label": "Razón",
+      "messages_deleted": "🗑️ Mensajes Eliminados",
+      "success": "✅ **{user}** ha sido baneado{reason} | Caso: #{case}",
+      "dm_sent": "📨 MD enviado al usuario sobre su ban",
+      "dm_failed": "⚠️ No se pudo enviar MD al usuario sobre su ban",
+      "dm_message": "Has sido baneado de **{server}**\nRazón: {reason}",
+      "failed": "❌ ¡Error al banear al usuario!"
+    },
+    "kick": {
+      "name": "kick",
+      "description": "Expulsar a un usuario del servidor",
+      "options": {
+        "user": "El usuario a expulsar",
+        "reason": "Razón de la expulsión"
+      },
+      "cannot_kick_self": "❌ ¡No puedes expulsarte a ti mismo!",
+      "cannot_kick_bot": "❌ ¡No puedo expulsarme a mí mismo!",
+      "higher_role": "❌ ¡No puedes expulsar a un usuario con un rol igual o superior al tuyo!",
+      "bot_higher_role": "❌ ¡No puedo expulsar a un usuario con un rol igual o superior al mío!",
+      "success": "✅ **{user}** ha sido expulsado{reason}",
+      "dm_sent": "📨 MD enviado al usuario sobre su expulsión",
+      "dm_failed": "⚠️ No se pudo enviar MD al usuario sobre su expulsión"
+    },
+    "ping": {
+      "name": "ping",
+      "description": "Verificar la latencia del bot",
+      "calculating": "🏓 Haciendo ping...",
+      "pong": "🏓 ¡Pong! Latencia: {latency}ms | Latencia API: {api}ms"
+    },
+    "help": {
+      "name": "help",
+      "description": "Mostrar todos los comandos disponibles",
+      "title": "📚 Ayuda - Comandos",
+      "category": "Categoría: {category}",
+      "use_command": "Usa /help <comando> para más información sobre un comando específico"
+    },
+    "leaderboard": {
+      "name": "leaderboard",
+      "description": "Ver el ranking de XP del servidor",
+      "title": "🏆 Ranking de XP",
+      "your_rank": "Tu Rango: #{rank}",
+      "no_data": "❌ No hay datos de ranking disponibles.",
+      "level": "Nivel",
+      "xp": "XP",
+      "messages": "mensajes",
+      "not_your_menu": "¡Este menú no es para ti!"
+    },
+    "rank": {
+      "name": "rank",
+      "description": "Ver tu rango o el de otro usuario",
+      "options": {
+        "user": "El usuario a verificar"
+      },
+      "title": "Tarjeta de Rango de {user}",
+      "stats": "📊 Estadísticas",
+      "progress": "🎯 Progreso",
+      "rank": "Rango",
+      "level": "Nivel",
+      "xp": "XP",
+      "messages": "Mensajes",
+      "current": "Actual",
+      "needed": "Necesario",
+      "next_level": "Siguiente Nivel",
+      "progress_percent": "Progreso",
+      "level_progress": "Nivel {current} ➜ {next}"
+    },
+    "serverinfo": {
+      "name": "serverinfo",
+      "description": "Mostrar información sobre el servidor",
+      "title": "Información del Servidor {server}",
+      "server_name": "📝 Nombre del Servidor",
+      "server_id": "🆔 ID del Servidor",
+      "owner": "👑 Propietario",
+      "created": "📅 Creado",
+      "members": "👥 Miembros",
+      "channels": "💬 Canales",
+      "emojis": "😀 Emojis",
+      "roles": "🎭 Roles",
+      "boost_level": "🚀 Nivel de Boosts",
+      "level": "Nivel {level}"
+    },
+    "userinfo": {
+      "name": "userinfo",
+      "description": "Mostrar información sobre un usuario",
+      "options": {
+        "user": "El usuario del cual obtener información"
+      },
+      "username": "👤 Nombre de Usuario",
+      "user_id": "🆔 ID de Usuario",
+      "bot": "🤖 Bot",
+      "yes": "Sí",
+      "no": "No",
+      "account_created": "📅 Cuenta Creada",
+      "joined_server": "📥 Se Unió al Servidor",
+      "nickname": "🎨 Apodo",
+      "none": "Ninguno",
+      "roles": "🎭 Roles [{count}]"
+    },
+    "botinfo": {
+      "name": "botinfo",
+      "description": "Mostrar información sobre el bot",
+      "title": "🤖 Información del Bot",
+      "bot_name": "📛 Nombre del Bot",
+      "bot_id": "🆔 ID del Bot",
+      "uptime": "⏰ Tiempo Activo",
+      "servers": "🌐 Servidores",
+      "users": "👥 Usuarios",
+      "ping": "📡 Ping",
+      "platform": "💻 Plataforma",
+      "node_version": "🔧 Versión de Node",
+      "discordjs": "📚 discord.js",
+      "unknown": "Desconocido",
+      "footer": "Construido con TypeScript + Bun"
+    },
+    "invite": {
+      "name": "invite",
+      "description": "Obtener el enlace de invitación del bot",
+      "title": "📨 ¡Invítame!",
+      "description": "¡Haz clic [aquí]({link}) para invitarme a tu servidor!",
+      "link_label": "🔗 Enlace de Invitación",
+      "click_here": "Haz Clic Aquí"
+    },
+    "role": {
+      "name": "role",
+      "description": "Añadir o quitar un rol de un miembro",
+      "subcommands": {
+        "add": {
+          "name": "add",
+          "description": "Añadir un rol a un miembro",
+          "options": {
+            "target": "El miembro al que añadir el rol",
+            "role": "El rol a añadir"
+          }
+        },
+        "remove": {
+          "name": "remove",
+          "description": "Quitar un rol de un miembro",
+          "options": {
+            "target": "El miembro del que quitar el rol",
+            "role": "El rol a quitar"
+          }
+        }
+      },
+      "added": "✅ Se añadió {role} a {user}",
+      "removed": "✅ Se quitó {role} de {user}",
+      "already_has": "❌ ¡{user} ya tiene el rol {role}!",
+      "doesnt_have": "❌ ¡{user} no tiene el rol {role}!",
+      "cannot_manage": "❌ ¡No puedes gestionar un rol igual o superior a tu rol más alto!",
+      "bot_cannot_manage": "❌ ¡No puedo gestionar un rol igual o superior a mi rol más alto!",
+      "managed_role": "❌ ¡Este rol es gestionado por una integración y no puede asignarse manualmente!",
+      "failed": "❌ ¡Error al modificar el rol!",
+      "not_in_server": "❌ ¡El usuario no está en este servidor!"
+    },
+    "voice": {
+      "name": "voice",
+      "description": "Gestionar moderación relacionada con voz",
+      "subcommands": {
+        "mute": "Silenciar a un usuario en voz",
+        "unmute": "Desilenciar a un usuario en voz",
+        "deafen": "Ensordecer a un usuario en voz",
+        "undeafen": "Desensordecer a un usuario en voz",
+        "disconnect": "Desconectar a un usuario de voz",
+        "move": "Mover a un usuario a otro canal de voz"
+      },
+      "no_reason": "Ninguna razón proporcionada",
+      "not_in_server": "❌ ¡Usuario no encontrado en el servidor!",
+      "higher_role": "❌ ¡No puedes realizar esta acción en alguien con un rol igual o superior!",
+      "not_in_voice": "❌ ¡El usuario no está en un canal de voz!",
+      "mute_success": "✅ {user} silenciado en voz en {channel}\nRazón: {reason}\nCaso: #{case}",
+      "unmute_success": "✅ {user} desilenciado en voz en {channel}",
+      "deafen_success": "✅ {user} ensordecido en voz en {channel}\nRazón: {reason}\nCaso: #{case}",
+      "undeafen_success": "✅ {user} desensordecido en voz en {channel}",
+      "disconnect_success": "✅ {user} desconectado de {channel}\nRazón: {reason}\nCaso: #{case}",
+      "move_success": "✅ {user} movido de {from} a {to}\nRazón: {reason}\nCaso: #{case}",
+      "failed": "❌ Error al realizar la acción: {error}"
+    },
+    "ticket": {
+      "need_admin": "❌ ¡Necesitas el permiso de **Administrador** para usar este comando!",
+      "need_manage_channels": "❌ ¡Necesitas el permiso de **Gestionar Canales** para usar este comando!",
+      "setup_success_title": "✅ Sistema de Tickets Configurado",
+      "category": "Categoría",
+      "support_role": "Rol de Soporte",
+      "log_channel": "Canal de Registro",
+      "not_set": "No establecido",
+      "setup_failed": "❌ Error al configurar el sistema de tickets.",
+      "max_tickets": "❌ Ya tienes {count} ticket{plural} abierto{plural}: {tickets}\n\nPor favor cierra tu{plural} ticket{plural} existente{plural} antes de crear uno nuevo.",
+      "no_subject": "Sin asunto proporcionado",
+      "created": "✅ Ticket creado: {channel}",
+      "create_failed": "❌ Error al crear el ticket. Por favor intenta de nuevo.",
+      "not_ticket_channel": "❌ ¡Este no es un canal de ticket!",
+      "invalid_channel": "❌ ¡Canal inválido!",
+      "close_failed": "❌ Error al cerrar el ticket.",
+      "user_added": "✅ Se añadió {user} al ticket.",
+      "add_user_failed": "❌ Error al añadir usuario al ticket.",
+      "user_removed": "✅ Se quitó {user} del ticket.",
+      "remove_user_failed": "❌ Error al quitar usuario del ticket.",
+      "stats_title": "📊 Estadísticas de Tickets",
+      "total_tickets": "📂 Tickets Totales",
+      "open_tickets": "🟢 Tickets Abiertos",
+      "closed_tickets": "🔴 Tickets Cerrados",
+      "top_users": "👥 Usuarios Principales",
+      "no_tickets_yet": "Aún no hay tickets",
+      "stats_failed": "❌ Error al obtener estadísticas de tickets."
+    },
+    "softban": {
+      "no_reason": "Ninguna razón proporcionada",
+      "cannot_softban_self": "❌ ¡No puedes banearte temporalmente a ti mismo!",
+      "cannot_softban_bot": "❌ ¡No puedo banearme temporalmente a mí mismo!",
+      "cannot_softban_owner": "❌ ¡No puedes banear temporalmente al dueño del servidor!",
+      "bot_higher_role": "❌ ¡No puedo banear temporalmente a este usuario ya que su rol más alto es igual o superior al mío!",
+      "higher_role": "❌ ¡No puedes banear temporalmente a este usuario ya que su rol más alto es igual o superior al tuyo!",
+      "dm_message": "Has sido baneado temporalmente de **{server}**.\n**Razón:** {reason}\n**Mensajes Eliminados:** {days} día{plural}\n\nUn baneo temporal te remueve del servidor y elimina tus mensajes recientes, pero puedes volver a unirte inmediatamente.",
+      "success": "✅ ¡**{user}** baneado temporalmente exitosamente!\n**Razón:** {reason}\n**Mensajes Eliminados:** {days} día{plural}",
+      "failed": "❌ ¡Error al banear temporalmente al usuario! Asegúrate de que tengo el permiso de Banear Miembros."
+    },
+    "nickname": {
+      "no_reason": "Ninguna razón proporcionada",
+      "bot_no_permission": "❌ ¡Necesito el permiso de Gestionar Apodos!",
+      "user_not_found": "❌ ¡Usuario no encontrado en este servidor!",
+      "cannot_change_owner": "❌ ¡No puedo cambiar el apodo del dueño del servidor!",
+      "bot_higher_role": "❌ ¡No puedo cambiar el apodo de alguien con un rol igual o superior al mío!",
+      "higher_role": "❌ ¡No puedes cambiar el apodo de alguien con un rol igual o superior al tuyo!",
+      "set_success": "✅ Apodo cambiado para {user} a **{nickname}**",
+      "reset_success": "✅ Apodo de {user} restablecido a su nombre de usuario",
+      "lock_success": "✅ Apodo de {user} bloqueado a **{nickname}**\nSu apodo se restablecerá automáticamente si intenta cambiarlo.",
+      "not_locked": "❌ ¡{user} no tiene un apodo bloqueado!",
+      "unlock_success": "✅ Apodo de {user} desbloqueado. Ahora puede cambiar su apodo libremente.",
+      "failed": "❌ ¡Error al cambiar el apodo! Asegúrate de que tengo los permisos adecuados."
+    },
+    "reactionrole": {
+      "default_description": "¡Reacciona a este mensaje para obtener roles!",
+      "footer": "Usa /reactionrole add para configurar roles",
+      "invalid_channel": "❌ ¡No se puede crear un panel de roles por reacción en este tipo de canal!",
+      "panel_created": "✅ ¡Panel de roles por reacción creado!\n**ID del Mensaje:** {id}\n\nUsa `/reactionrole add {id} <emoji> <rol>` para añadir roles.",
+      "role_too_high": "❌ ¡No puedo gestionar este rol! Es igual o superior a mi rol más alto.",
+      "added": "✅ ¡Rol por reacción añadido!\nEmoji: {emoji}\nRol: {role}",
+      "add_failed": "❌ Error al añadir rol por reacción.",
+      "message_not_found": "❌ ¡Mensaje no encontrado! Asegúrate de que el ID del mensaje sea correcto y esté en este canal.",
+      "invalid_emoji": "❌ ¡Emoji inválido! Asegúrate de usar un emoji válido.",
+      "removed": "✅ ¡Rol por reacción eliminado!",
+      "remove_failed": "❌ Error al eliminar rol por reacción.",
+      "no_roles": "❌ No se encontraron roles por reacción para este mensaje.",
+      "list_title": "📋 Roles por Reacción",
+      "list_description": "ID del Mensaje: {id}"
+    },
+    "giveaway": {
+      "title": "🎉 SORTEO 🎉",
+      "prize": "**Premio:** {prize}",
+      "winners": "**Ganadores:** {count}",
+      "ends": "**Finaliza:** <t:{time}:R>",
+      "react_to_enter": "¡Reacciona con 🎉 para participar!",
+      "hosted_by": "Organizado por {user}",
+      "create_failed": "❌ ¡Error al crear el mensaje del sorteo!",
+      "warning_persist": "⚠️ Sorteo iniciado pero puede no persistir si el bot se reinicia.",
+      "no_giveaways": "❌ No se encontraron sorteos en este servidor.",
+      "list_title": "📋 Sorteos Recientes",
+      "status_ended": "✅ Finalizado",
+      "status_active": "🔴 Activo",
+      "showing_last": "Mostrando últimos {count} sorteos",
+      "not_found": "❌ ¡Sorteo no encontrado!",
+      "already_ended": "❌ ¡Este sorteo ya ha finalizado!",
+      "ended": "✅ El sorteo #{id} ({prize}) ha finalizado anticipadamente. Los ganadores serán elegidos en breve.",
+      "message_not_found": "❌ ¡Mensaje no encontrado!",
+      "no_reactions": "❌ ¡No se encontraron reacciones 🎉 en este mensaje!",
+      "no_participants": "❌ ¡No se encontraron participantes válidos!",
+      "reroll_success": "🎉 **Nuevo Ganador:** {winner}\n¡Felicitaciones!",
+      "reroll_failed": "❌ Error al volver a sortear. Asegúrate de que el ID del mensaje sea correcto."
+    },
+    "config": {
+      "view_title": "⚙️ Configuración del Servidor",
+      "view_description": "Configuración para **{server}**",
+      "welcome_messages": "👋 Mensajes de Bienvenida",
+      "goodbye_messages": "👋 Mensajes de Despedida",
+      "auto_role": "🎭 Rol Automático",
+      "mod_log": "📋 Registro de Moderación",
+      "xp_system": "⭐ Sistema de XP",
+      "enabled": "Habilitado",
+      "channel": "Canal",
+      "message": "Mensaje",
+      "not_set": "No configurado",
+      "default": "Predeterminado",
+      "xp_range": "Rango de XP",
+      "cooldown": "Tiempo de espera",
+      "level_notifications": "Notificaciones de Nivel",
+      "logging_title": "📋 Configuración Actual de Registros",
+      "log_channel": "📍 Canal de Registros",
+      "message_edits": "📝 Ediciones de Mensajes",
+      "message_deletes": "🗑️ Eliminaciones de Mensajes",
+      "member_joins": "📥 Miembros que se Unen",
+      "member_leaves": "📤 Miembros que se Van",
+      "role_changes": "🎭 Cambios de Roles",
+      "voice_activity": "🔊 Actividad de Voz",
+      "channel_events": "📁 Eventos de Canales",
+      "server_events": "⚙️ Eventos del Servidor",
+      "role_events": "🎭 Eventos de Roles",
+      "ban_events": "🔨 Eventos de Baneo",
+      "invite_tracking": "📨 Seguimiento de Invitaciones",
+      "enabled_status": "✅ Habilitado",
+      "disabled_status": "❌ Deshabilitado"
+    },
+    "poll": {
+      "ends": "Finaliza",
+      "no_time_limit": "Sin límite de tiempo",
+      "use_end_command": "Use `/poll end` para cerrar",
+      "created_by": "Encuesta creada por {user}",
+      "failed_create": "❌ ¡Error al crear el mensaje de la encuesta!",
+      "created": "✅ Encuesta creada! ID: {id}",
+      "warning_persist": "⚠️ Encuesta creada pero puede no persistir si el bot se reinicia.",
+      "not_found": "❌ ¡Encuesta no encontrada!",
+      "already_ended": "❌ ¡Esta encuesta ya ha finalizado!",
+      "channel_not_found": "❌ ¡Canal no encontrado!",
+      "message_not_found": "❌ ¡Mensaje no encontrado!",
+      "votes": "votos",
+      "results_title": "📊 Resultados de la Encuesta: {question}",
+      "total_votes": "📈 Total de Votos",
+      "ended_by": "Encuesta finalizada por {user}",
+      "ended": "✅ La encuesta #{id} ha sido finalizada.",
+      "failed_end": "❌ ¡Error al finalizar la encuesta!",
+      "no_polls": "❌ No se encontraron encuestas en este servidor.",
+      "list_title": "📋 Encuestas Recientes",
+      "status_ended": "✅ Finalizada",
+      "status_active": "🔴 Activa",
+      "showing_last": "Mostrando últimas {count} encuestas"
+    }
+  }
+}

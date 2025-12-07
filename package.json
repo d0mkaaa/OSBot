@@ -1,0 +1,41 @@
+{
+  "name": "osbot",
+  "version": "1.0.0",
+  "description": "A modern Discord bot built with TypeScript and discord.js v14",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "start": "bun run dist/index.js",
+    "deploy": "bun run src/deploy-commands.ts",
+    "typecheck": "tsc --noEmit",
+    "localize:check": "bun run scripts/localize-commands.ts",
+    "localize:analyze": "bun run scripts/localize-commands.ts --analyze",
+    "localize:add": "bun run scripts/add-localization.ts",
+    "localize:auto": "bun run scripts/auto-localize-all.ts",
+    "localize:sync": "bun run scripts/sync-translations.ts",
+    "localize:validate": "bun run scripts/validate-localization.ts"
+  },
+  "keywords": ["discord", "bot", "typescript", "discord.js"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "passport": "^0.7.0",
+    "passport-discord": "^0.1.4",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/express": "^5.0.5",
+    "@types/express-session": "^1.18.2",
+    "@types/passport": "^1.0.17",
+    "@types/passport-discord": "^0.1.15",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
+  }
+}
