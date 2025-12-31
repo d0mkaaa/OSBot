@@ -8,6 +8,10 @@ import { logger } from '../utils/logger.js';
 import { setupAuth } from './auth.js';
 import { isOwner } from './middleware/auth-check.js';
 import apiRouter, { initializeNewRoutes } from './routes/api.js';
+import automodFiltersRouter from './routes/automod-filters.js';
+import xpBoostersRouter from './routes/xp-boosters.js';
+import musicRouter from './routes/music.js';
+import antiraidRouter from './routes/antiraid.js';
 import { setupWebSocketServer } from './websocket.js';
 import { DatabaseManager } from '../database/Database.js';
 import { auditLogger } from './middleware/audit-logger.js';
@@ -125,9 +129,17 @@ export function createDashboardServer(client: any) {
   if (ownerCheckEnabled) {
     logger.info('Dashboard owner verification enabled');
     app.use('/api', isOwner, apiRouter);
+    app.use('/api', isOwner, automodFiltersRouter);
+    app.use('/api', isOwner, xpBoostersRouter);
+    app.use('/api', isOwner, musicRouter);
+    app.use('/api/antiraid', isOwner, antiraidRouter);
   } else {
     logger.info('Dashboard owner verification disabled (no BOT_OWNERS set)');
     app.use('/api', apiRouter);
+    app.use('/api', automodFiltersRouter);
+    app.use('/api', xpBoostersRouter);
+    app.use('/api', musicRouter);
+    app.use('/api/antiraid', antiraidRouter);
   }
 
   initializeNewRoutes(app, client);

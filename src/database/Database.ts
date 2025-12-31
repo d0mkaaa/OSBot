@@ -1,10 +1,12 @@
-import { Database } from 'bun:sqlite';
+import BetterSqlite3 from 'better-sqlite3';
 import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
 import { env } from '../config/environment.js';
 import type * as Types from './types.js';
+
+type Database = BetterSqlite3.Database;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,23 +17,33 @@ const ALLOWED_GUILD_COLUMNS = new Set([
   'welcome_enabled', 'goodbye_enabled', 'welcome_embed', 'goodbye_embed', 'auto_role_id', 'mod_log_channel_id', 'audit_log_channel_id',
   'starboard_channel_id', 'starboard_threshold', 'xp_enabled', 'xp_min', 'xp_max', 'xp_cooldown',
   'level_up_channel_id', 'level_up_message', 'level_up_enabled', 'antiraid_enabled',
-  'antiraid_join_threshold', 'antiraid_join_window', 'antiraid_action', 'warning_threshold_enabled',
+  'antiraid_join_threshold', 'antiraid_join_window', 'antiraid_action',
+  'raid_lockdown_active', 'raid_lockdown_started_at', 'raid_lockdown_verification_channel_id',
+  'warning_threshold_enabled',
   'warning_threshold_count', 'warning_threshold_action', 'warning_threshold_duration',
   'log_channel_id', 'log_message_edits', 'log_message_deletes', 'log_member_join',
   'log_member_leave', 'log_role_changes', 'log_voice_activity', 'log_channel_events',
   'log_server_events', 'log_role_events', 'log_ban_events', 'log_invite_events',
   'automod_spam_count', 'automod_spam_interval', 'automod_allowed_links',
   'automod_caps_percentage', 'automod_caps_min_length', 'automod_max_mentions',
-  'automod_profanity_preset', 'automod_profanity_list', 'automod_allow_invites_list'
+  'automod_profanity_preset', 'automod_profanity_list', 'automod_allow_invites_list',
+  'tickets_enabled', 'warnings_enabled', 'analytics_enabled', 'moderation_enabled',
+  'automod_enabled', 'leveling_enabled', 'music_enabled'
 ]);
 
-const ALLOWED_MEMBER_COLUMNS = new Set(['level', 'xp', 'messages', 'warnings']);
+const ALLOWED_MEMBER_COLUMNS = new Set(['level', 'xp', 'messages', 'warnings', 'card_bg_color', 'card_accent_color', 'card_bg_image']);
 
 const ALLOWED_AUTOMOD_COLUMNS = new Set([
-  'spam_enabled', 'spam_threshold', 'spam_interval', 'links_enabled', 'links_whitelist',
-  'caps_enabled', 'caps_threshold', 'mentions_enabled', 'mentions_threshold',
-  'profanity_enabled', 'profanity_list', 'invites_enabled', 'invites_allow_own',
-  'action', 'violations_threshold', 'violations_action', 'violations_duration'
+  'spam_enabled', 'spam_threshold', 'spam_interval', 'spam_similarity_enabled', 'spam_similarity_threshold',
+  'links_enabled', 'links_whitelist',
+  'caps_enabled', 'caps_threshold', 'caps_min_length', 'mentions_enabled', 'mentions_threshold',
+  'profanity_enabled', 'profanity_list', 'profanity_preset', 'profanity_use_word_boundaries',
+  'invites_enabled', 'invites_allow_own', 'invites_allowlist',
+  'action', 'violations_threshold', 'violations_action', 'violations_duration',
+  'exempt_roles', 'exempt_channels',
+  'phishing_enabled', 'phishing_action',
+  'account_age_enabled', 'account_age_min_days', 'account_age_action',
+  'alt_detection_enabled', 'alt_detection_sensitivity', 'alt_detection_action'
 ]);
 
 export class DatabaseManager {
@@ -47,7 +59,7 @@ export class DatabaseManager {
       mkdirSync(dataDir, { recursive: true });
     }
 
-    this.db = new Database(finalPath, { create: true });
+    this.db = new BetterSqlite3(finalPath);
     this.db.exec('PRAGMA journal_mode = WAL');
     this.db.exec('PRAGMA foreign_keys = ON');
     this.db.exec('PRAGMA busy_timeout = 5000');
@@ -142,13 +154,23 @@ export class DatabaseManager {
         { name: 'automod_max_mentions', sql: 'ALTER TABLE guilds ADD COLUMN automod_max_mentions INTEGER DEFAULT 5' },
         { name: 'automod_profanity_list', sql: 'ALTER TABLE guilds ADD COLUMN automod_profanity_list TEXT' },
         { name: 'automod_allow_invites_list', sql: 'ALTER TABLE guilds ADD COLUMN automod_allow_invites_list TEXT' },
-        { name: 'automod_profanity_preset', sql: 'ALTER TABLE guilds ADD COLUMN automod_profanity_preset TEXT DEFAULT \'moderate\'' }
+        { name: 'automod_profanity_preset', sql: 'ALTER TABLE guilds ADD COLUMN automod_profanity_preset TEXT DEFAULT \'moderate\'' },
+        { name: 'tickets_enabled', sql: 'ALTER TABLE guilds ADD COLUMN tickets_enabled BOOLEAN DEFAULT 1' },
+        { name: 'warnings_enabled', sql: 'ALTER TABLE guilds ADD COLUMN warnings_enabled BOOLEAN DEFAULT 1' },
+        { name: 'analytics_enabled', sql: 'ALTER TABLE guilds ADD COLUMN analytics_enabled BOOLEAN DEFAULT 0' },
+        { name: 'moderation_enabled', sql: 'ALTER TABLE guilds ADD COLUMN moderation_enabled BOOLEAN DEFAULT 1' },
+        { name: 'automod_enabled', sql: 'ALTER TABLE guilds ADD COLUMN automod_enabled BOOLEAN DEFAULT 1' },
+        { name: 'leveling_enabled', sql: 'ALTER TABLE guilds ADD COLUMN leveling_enabled BOOLEAN DEFAULT 1' },
+        { name: 'music_enabled', sql: 'ALTER TABLE guilds ADD COLUMN music_enabled BOOLEAN DEFAULT 1' },
+        { name: 'raid_lockdown_active', sql: 'ALTER TABLE guilds ADD COLUMN raid_lockdown_active BOOLEAN DEFAULT 0' },
+        { name: 'raid_lockdown_started_at', sql: 'ALTER TABLE guilds ADD COLUMN raid_lockdown_started_at INTEGER' },
+        { name: 'raid_lockdown_verification_channel_id', sql: 'ALTER TABLE guilds ADD COLUMN raid_lockdown_verification_channel_id TEXT' }
       ];
 
       for (const column of requiredColumns) {
         if (!existingColumns.has(column.name)) {
           logger.info(`Running migration: Adding ${column.name} column to guilds table`);
-          this.db.run(column.sql);
+          this.db.exec(column.sql);
           logger.success(`Migration completed: ${column.name} column added`);
         }
       }
@@ -162,11 +184,45 @@ export class DatabaseManager {
 
       if (!existingColumns.has('transcript')) {
         logger.info('Running migration: Adding transcript column to tickets table');
-        this.db.run('ALTER TABLE tickets ADD COLUMN transcript TEXT');
+        this.db.exec('ALTER TABLE tickets ADD COLUMN transcript TEXT');
         logger.success('Migration completed: transcript column added');
       }
     } catch (error) {
       logger.warn(`Tickets table migration check failed: ${error}`);
+    }
+
+    try {
+      const automodTableInfo = this.db.prepare('PRAGMA table_info(automod_settings)').all() as any[];
+      const existingColumns = new Set(automodTableInfo.map((col: any) => col.name));
+
+      const requiredAutomodColumns = [
+        { name: 'spam_similarity_enabled', sql: 'ALTER TABLE automod_settings ADD COLUMN spam_similarity_enabled BOOLEAN DEFAULT 0' },
+        { name: 'spam_similarity_threshold', sql: 'ALTER TABLE automod_settings ADD COLUMN spam_similarity_threshold INTEGER DEFAULT 80' },
+        { name: 'caps_min_length', sql: 'ALTER TABLE automod_settings ADD COLUMN caps_min_length INTEGER DEFAULT 10' },
+        { name: 'profanity_preset', sql: 'ALTER TABLE automod_settings ADD COLUMN profanity_preset TEXT DEFAULT \'moderate\'' },
+        { name: 'profanity_use_word_boundaries', sql: 'ALTER TABLE automod_settings ADD COLUMN profanity_use_word_boundaries BOOLEAN DEFAULT 1' },
+        { name: 'invites_allowlist', sql: 'ALTER TABLE automod_settings ADD COLUMN invites_allowlist TEXT' },
+        { name: 'exempt_roles', sql: 'ALTER TABLE automod_settings ADD COLUMN exempt_roles TEXT' },
+        { name: 'exempt_channels', sql: 'ALTER TABLE automod_settings ADD COLUMN exempt_channels TEXT' },
+        { name: 'phishing_enabled', sql: 'ALTER TABLE automod_settings ADD COLUMN phishing_enabled BOOLEAN DEFAULT 0' },
+        { name: 'phishing_action', sql: 'ALTER TABLE automod_settings ADD COLUMN phishing_action TEXT DEFAULT \'warn\'' },
+        { name: 'account_age_enabled', sql: 'ALTER TABLE automod_settings ADD COLUMN account_age_enabled BOOLEAN DEFAULT 0' },
+        { name: 'account_age_min_days', sql: 'ALTER TABLE automod_settings ADD COLUMN account_age_min_days INTEGER DEFAULT 7' },
+        { name: 'account_age_action', sql: 'ALTER TABLE automod_settings ADD COLUMN account_age_action TEXT DEFAULT \'kick\'' },
+        { name: 'alt_detection_enabled', sql: 'ALTER TABLE automod_settings ADD COLUMN alt_detection_enabled BOOLEAN DEFAULT 0' },
+        { name: 'alt_detection_sensitivity', sql: 'ALTER TABLE automod_settings ADD COLUMN alt_detection_sensitivity INTEGER DEFAULT 3' },
+        { name: 'alt_detection_action', sql: 'ALTER TABLE automod_settings ADD COLUMN alt_detection_action TEXT DEFAULT \'warn\'' }
+      ];
+
+      for (const column of requiredAutomodColumns) {
+        if (!existingColumns.has(column.name)) {
+          logger.info(`Running migration: Adding ${column.name} column to automod_settings table`);
+          this.db.exec(column.sql);
+          logger.success(`Migration completed: ${column.name} column added`);
+        }
+      }
+    } catch (error) {
+      logger.warn(`Automod settings table migration check failed: ${error}`);
     }
   }
 
@@ -201,7 +257,13 @@ export class DatabaseManager {
         return false;
       }
 
-      const values = keys.map(key => data[key]);
+      const values = keys.map(key => {
+        const value = data[key];
+        if (typeof value === 'boolean') return value ? 1 : 0;
+        if (value === null || value === undefined) return null;
+        if (typeof value === 'object') return JSON.stringify(value);
+        return value;
+      });
       const setClause = keys.map(key => `${key} = ?`).join(', ');
       const stmt = this.db.prepare(
         `UPDATE guilds SET ${setClause}, updated_at = strftime('%s', 'now') WHERE guild_id = ?`
@@ -539,6 +601,30 @@ export class DatabaseManager {
     return stmt.run(guildId, userId, now);
   }
 
+  public checkAndUpdateXPCooldown(guildId: string, userId: string, cooldownSeconds: number): boolean {
+    const now = Math.floor(Date.now() / 1000);
+
+    const transaction = this.db.transaction(() => {
+      const checkStmt = this.db.prepare(
+        'SELECT last_xp_gain FROM xp_cooldowns WHERE guild_id = ? AND user_id = ?'
+      );
+      const result = checkStmt.get(guildId, userId) as { last_xp_gain: number } | undefined;
+
+      if (result && (now - result.last_xp_gain) < cooldownSeconds) {
+        return false;
+      }
+
+      const updateStmt = this.db.prepare(
+        'INSERT OR REPLACE INTO xp_cooldowns (guild_id, user_id, last_xp_gain) VALUES (?, ?, ?)'
+      );
+      updateStmt.run(guildId, userId, now);
+
+      return true;
+    });
+
+    return transaction();
+  }
+
   public addLevelRole(guildId: string, level: number, roleId: string) {
     const stmt = this.db.prepare(
       'INSERT OR REPLACE INTO level_roles (guild_id, level, role_id) VALUES (?, ?, ?)'
@@ -594,7 +680,7 @@ export class DatabaseManager {
       'INSERT INTO giveaways (guild_id, channel_id, prize, winner_count, ends_at, created_by) VALUES (?, ?, ?, ?, ?, ?)'
     );
     stmt.run(guildId, channelId, prize, winnerCount, endsAt, createdBy);
-    const result = this.db.query('SELECT last_insert_rowid() as id').get() as { id: number };
+    const result = this.db.prepare('SELECT last_insert_rowid() as id').get() as { id: number };
     return result.id;
   }
 
@@ -650,7 +736,7 @@ export class DatabaseManager {
       'INSERT INTO polls (guild_id, channel_id, question, options, ends_at, created_by) VALUES (?, ?, ?, ?, ?, ?)'
     );
     stmt.run(guildId, channelId, question, JSON.stringify(options), endsAt, createdBy);
-    const result = this.db.query('SELECT last_insert_rowid() as id').get() as { id: number };
+    const result = this.db.prepare('SELECT last_insert_rowid() as id').get() as { id: number };
     return result.id;
   }
 
@@ -773,13 +859,13 @@ export class DatabaseManager {
   }
 
   public getTicket(channelId: string) {
-    const stmt = this.db.prepare('SELECT * FROM tickets WHERE channel_id = ? AND status = "open"');
+    const stmt = this.db.prepare('SELECT * FROM tickets WHERE channel_id = ? AND status = \'open\'');
     return stmt.get(channelId);
   }
 
   public closeTicket(channelId: string, closedBy: string, transcript?: string) {
     const stmt = this.db.prepare(
-      'UPDATE tickets SET status = "closed", closed_at = strftime(\'%s\', \'now\'), closed_by = ?, transcript = ? WHERE channel_id = ?'
+      'UPDATE tickets SET status = \'closed\', closed_at = strftime(\'%s\', \'now\'), closed_by = ?, transcript = ? WHERE channel_id = ?'
     );
     return stmt.run(closedBy, transcript || null, channelId);
   }
@@ -1039,6 +1125,16 @@ export class DatabaseManager {
     return stmt.all(...params);
   }
 
+  public upsertAnalytics(guildId: string, metricType: string, timeBucket: number, value: number, metadata?: string | null) {
+    const stmt = this.db.prepare(`
+      INSERT INTO analytics_cache (guild_id, metric_type, time_bucket, value, metadata)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id, metric_type, time_bucket)
+      DO UPDATE SET value = value + excluded.value, metadata = excluded.metadata
+    `);
+    stmt.run(guildId, metricType, timeBucket, value, metadata || null);
+  }
+
   public incrementAnalyticsMetric(guildId: string, metricType: string, timeBucket: number, increment: number = 1) {
     const existing = this.db.prepare(
       'SELECT value FROM analytics_cache WHERE guild_id = ? AND metric_type = ? AND time_bucket = ?'
@@ -1136,6 +1232,8 @@ export class DatabaseManager {
     userId?: string;
     guildId?: string;
     actionType?: string;
+    search?: string;
+    success?: boolean;
     limit?: number;
     offset?: number;
     startDate?: number;
@@ -1145,6 +1243,8 @@ export class DatabaseManager {
       userId,
       guildId,
       actionType,
+      search,
+      success,
       limit = 100,
       offset = 0,
       startDate,
@@ -1169,6 +1269,17 @@ export class DatabaseManager {
       params.push(actionType);
     }
 
+    if (search) {
+      query += ' AND (username LIKE ? OR user_id LIKE ? OR ip_address LIKE ?)';
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    if (success !== undefined) {
+      query += ' AND success = ?';
+      params.push(success ? 1 : 0);
+    }
+
     if (startDate) {
       query += ' AND timestamp >= ?';
       params.push(startDate);
@@ -1186,7 +1297,77 @@ export class DatabaseManager {
     return stmt.all(...params);
   }
 
-  public getDashboardAuditStats(userId?: string, guildId?: string) {
+  public getDashboardAuditCount(options: {
+    userId?: string;
+    guildId?: string;
+    actionType?: string;
+    search?: string;
+    success?: boolean;
+    startDate?: number;
+    endDate?: number;
+  } = {}) {
+    const {
+      userId,
+      guildId,
+      actionType,
+      search,
+      success,
+      startDate,
+      endDate
+    } = options;
+
+    let query = 'SELECT COUNT(*) as count FROM dashboard_audit WHERE 1=1';
+    const params: any[] = [];
+
+    if (userId) {
+      query += ' AND user_id = ?';
+      params.push(userId);
+    }
+
+    if (guildId) {
+      query += ' AND guild_id = ?';
+      params.push(guildId);
+    }
+
+    if (actionType) {
+      query += ' AND action_type = ?';
+      params.push(actionType);
+    }
+
+    if (search) {
+      query += ' AND (username LIKE ? OR user_id LIKE ? OR ip_address LIKE ?)';
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    if (success !== undefined) {
+      query += ' AND success = ?';
+      params.push(success ? 1 : 0);
+    }
+
+    if (startDate) {
+      query += ' AND timestamp >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ' AND timestamp <= ?';
+      params.push(endDate);
+    }
+
+    const stmt = this.db.prepare(query);
+    const result = stmt.get(...params) as { count: number };
+    return result.count;
+  }
+
+  public getDashboardAuditStats(options: {
+    userId?: string;
+    guildId?: string;
+    startDate?: number;
+    endDate?: number;
+  } = {}) {
+    const { userId, guildId, startDate, endDate } = options;
+
     let query = `
       SELECT
         action_type,
@@ -1208,14 +1389,448 @@ export class DatabaseManager {
       params.push(guildId);
     }
 
+    if (startDate) {
+      query += ' AND timestamp >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ' AND timestamp <= ?';
+      params.push(endDate);
+    }
+
     query += ' GROUP BY action_type ORDER BY count DESC';
 
     const stmt = this.db.prepare(query);
     return stmt.all(...params);
   }
 
+  public getDashboardAuditSummary(options: {
+    userId?: string;
+    guildId?: string;
+    startDate?: number;
+    endDate?: number;
+  } = {}) {
+    const { userId, guildId, startDate, endDate } = options;
+
+    let query = `
+      SELECT
+        COUNT(*) as total_actions,
+        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_actions,
+        SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) as failed_actions,
+        COUNT(DISTINCT user_id) as unique_users,
+        COUNT(DISTINCT guild_id) as unique_guilds
+      FROM dashboard_audit
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+
+    if (userId) {
+      query += ' AND user_id = ?';
+      params.push(userId);
+    }
+
+    if (guildId) {
+      query += ' AND guild_id = ?';
+      params.push(guildId);
+    }
+
+    if (startDate) {
+      query += ' AND timestamp >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ' AND timestamp <= ?';
+      params.push(endDate);
+    }
+
+    const stmt = this.db.prepare(query);
+    return stmt.get(...params);
+  }
+
   public clearDashboardAuditLogs(olderThanTimestamp: number) {
     const stmt = this.db.prepare('DELETE FROM dashboard_audit WHERE timestamp < ?');
     return stmt.run(olderThanTimestamp);
+  }
+
+  public getDashboardUserSettings(userId: string) {
+    const stmt = this.db.prepare('SELECT * FROM dashboard_user_settings WHERE user_id = ?');
+    return stmt.get(userId);
+  }
+
+  public createOrUpdateDashboardUserSettings(
+    userId: string,
+    username: string,
+    discriminator: string,
+    settings?: {
+      email_notifications?: boolean;
+      security_alerts?: boolean;
+      two_factor_enabled?: boolean;
+      two_factor_secret?: string | null;
+      session_timeout?: number;
+      theme?: string;
+    }
+  ) {
+    const existing = this.getDashboardUserSettings(userId);
+
+    if (existing) {
+      const updates: string[] = [];
+      const params: any[] = [];
+
+      if (settings) {
+        if (settings.email_notifications !== undefined) {
+          updates.push('email_notifications = ?');
+          params.push(settings.email_notifications ? 1 : 0);
+        }
+        if (settings.security_alerts !== undefined) {
+          updates.push('security_alerts = ?');
+          params.push(settings.security_alerts ? 1 : 0);
+        }
+        if (settings.two_factor_enabled !== undefined) {
+          updates.push('two_factor_enabled = ?');
+          params.push(settings.two_factor_enabled ? 1 : 0);
+        }
+        if (settings.two_factor_secret !== undefined) {
+          updates.push('two_factor_secret = ?');
+          params.push(settings.two_factor_secret);
+        }
+        if (settings.session_timeout !== undefined) {
+          updates.push('session_timeout = ?');
+          params.push(settings.session_timeout);
+        }
+        if (settings.theme !== undefined) {
+          updates.push('theme = ?');
+          params.push(settings.theme);
+        }
+      }
+
+      updates.push('username = ?');
+      params.push(username);
+      updates.push('discriminator = ?');
+      params.push(discriminator);
+      updates.push('updated_at = ?');
+      params.push(Math.floor(Date.now() / 1000));
+
+      params.push(userId);
+
+      const stmt = this.db.prepare(`UPDATE dashboard_user_settings SET ${updates.join(', ')} WHERE user_id = ?`);
+      return stmt.run(...params);
+    } else {
+      const stmt = this.db.prepare(`
+        INSERT INTO dashboard_user_settings (
+          user_id, username, discriminator, email_notifications, security_alerts,
+          two_factor_enabled, two_factor_secret, session_timeout, theme
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      return stmt.run(
+        userId,
+        username,
+        discriminator,
+        settings?.email_notifications !== undefined ? (settings.email_notifications ? 1 : 0) : 1,
+        settings?.security_alerts !== undefined ? (settings.security_alerts ? 1 : 0) : 1,
+        settings?.two_factor_enabled !== undefined ? (settings.two_factor_enabled ? 1 : 0) : 0,
+        settings?.two_factor_secret || null,
+        settings?.session_timeout || 86400,
+        settings?.theme || 'dark'
+      );
+    }
+  }
+
+  public getDashboardSessions(userId: string) {
+    const stmt = this.db.prepare(`
+      SELECT * FROM dashboard_sessions
+      WHERE user_id = ? AND expires_at > ?
+      ORDER BY last_activity DESC
+    `);
+    return stmt.all(userId, Math.floor(Date.now() / 1000));
+  }
+
+  public createDashboardSession(
+    sessionId: string,
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+    expiresAt: number
+  ) {
+    const stmt = this.db.prepare(`
+      INSERT INTO dashboard_sessions (session_id, user_id, ip_address, user_agent, expires_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    return stmt.run(sessionId, userId, ipAddress, userAgent, expiresAt);
+  }
+
+  public updateDashboardSessionActivity(sessionId: string) {
+    const stmt = this.db.prepare(`
+      UPDATE dashboard_sessions SET last_activity = ? WHERE session_id = ?
+    `);
+    return stmt.run(Math.floor(Date.now() / 1000), sessionId);
+  }
+
+  public deleteDashboardSession(sessionId: string) {
+    const stmt = this.db.prepare('DELETE FROM dashboard_sessions WHERE session_id = ?');
+    return stmt.run(sessionId);
+  }
+
+  public deleteAllDashboardSessions(userId: string) {
+    const stmt = this.db.prepare('DELETE FROM dashboard_sessions WHERE user_id = ?');
+    return stmt.run(userId);
+  }
+
+  public cleanupExpiredSessions() {
+    const stmt = this.db.prepare('DELETE FROM dashboard_sessions WHERE expires_at < ?');
+    return stmt.run(Math.floor(Date.now() / 1000));
+  }
+
+  public addCustomFilter(guildId: string, name: string, pattern: string, action: string, createdBy: string) {
+    const stmt = this.db.prepare(
+      'INSERT INTO automod_custom_filters (guild_id, name, pattern, action, created_by) VALUES (?, ?, ?, ?, ?)'
+    );
+    return stmt.run(guildId, name, pattern, action, createdBy);
+  }
+
+  public getCustomFilter(guildId: string, name: string) {
+    const stmt = this.db.prepare(
+      'SELECT * FROM automod_custom_filters WHERE guild_id = ? AND name = ?'
+    );
+    return stmt.get(guildId, name);
+  }
+
+  public getCustomFilters(guildId: string) {
+    const stmt = this.db.prepare(
+      'SELECT * FROM automod_custom_filters WHERE guild_id = ? ORDER BY created_at DESC'
+    );
+    return stmt.all(guildId);
+  }
+
+  public getEnabledCustomFilters(guildId: string) {
+    const stmt = this.db.prepare(
+      'SELECT * FROM automod_custom_filters WHERE guild_id = ? AND enabled = 1 ORDER BY created_at DESC'
+    );
+    return stmt.all(guildId);
+  }
+
+  public updateCustomFilter(guildId: string, name: string, updates: { pattern?: string; action?: string; enabled?: boolean }) {
+    const validKeys = Object.keys(updates).filter(key => ['pattern', 'action', 'enabled'].includes(key));
+    if (validKeys.length === 0) return false;
+
+    const values = validKeys.map(key => updates[key as keyof typeof updates]).filter(v => v !== undefined);
+    const setClause = validKeys.map(key => `${key} = ?`).join(', ');
+    const stmt = this.db.prepare(
+      `UPDATE automod_custom_filters SET ${setClause} WHERE guild_id = ? AND name = ?`
+    );
+    return stmt.run(...values, guildId, name);
+  }
+
+  public deleteCustomFilter(guildId: string, name: string) {
+    const stmt = this.db.prepare(
+      'DELETE FROM automod_custom_filters WHERE guild_id = ? AND name = ?'
+    );
+    return stmt.run(guildId, name);
+  }
+
+  public addXPBooster(guildId: string, type: 'role' | 'channel', targetId: string, multiplier: number, createdBy: string) {
+    const stmt = this.db.prepare(
+      'INSERT INTO xp_boosters (guild_id, type, target_id, multiplier, created_by) VALUES (?, ?, ?, ?, ?)'
+    );
+    return stmt.run(guildId, type, targetId, multiplier, createdBy);
+  }
+
+  public getXPBooster(guildId: string, type: string, targetId: string) {
+    const stmt = this.db.prepare(
+      'SELECT * FROM xp_boosters WHERE guild_id = ? AND type = ? AND target_id = ?'
+    );
+    return stmt.get(guildId, type, targetId);
+  }
+
+  public getXPBoosters(guildId: string) {
+    const stmt = this.db.prepare(
+      'SELECT * FROM xp_boosters WHERE guild_id = ? ORDER BY created_at DESC'
+    );
+    return stmt.all(guildId);
+  }
+
+  public getRoleXPBoosters(guildId: string) {
+    const stmt = this.db.prepare(
+      'SELECT * FROM xp_boosters WHERE guild_id = ? AND type = \'role\''
+    );
+    return stmt.all(guildId);
+  }
+
+  public getChannelXPBoosters(guildId: string) {
+    const stmt = this.db.prepare(
+      'SELECT * FROM xp_boosters WHERE guild_id = ? AND type = \'channel\''
+    );
+    return stmt.all(guildId);
+  }
+
+  public updateXPBooster(guildId: string, type: string, targetId: string, multiplier: number) {
+    const stmt = this.db.prepare(
+      'UPDATE xp_boosters SET multiplier = ? WHERE guild_id = ? AND type = ? AND target_id = ?'
+    );
+    return stmt.run(multiplier, guildId, type, targetId);
+  }
+
+  public deleteXPBooster(guildId: string, type: string, targetId: string) {
+    const stmt = this.db.prepare(
+      'DELETE FROM xp_boosters WHERE guild_id = ? AND type = ? AND target_id = ?'
+    );
+    return stmt.run(guildId, type, targetId);
+  }
+
+  public updateGuildMemberCardSettings(guildId: string, userId: string, settings: { card_bg_color?: string; card_accent_color?: string; card_bg_image?: string }) {
+    const validKeys = Object.keys(settings).filter(key => ['card_bg_color', 'card_accent_color', 'card_bg_image'].includes(key));
+    if (validKeys.length === 0) return false;
+
+    const values = validKeys.map(key => settings[key as keyof typeof settings]).filter(v => v !== undefined);
+    const setClause = validKeys.map(key => `${key} = ?`).join(', ');
+    const stmt = this.db.prepare(
+      `UPDATE guild_members SET ${setClause} WHERE guild_id = ? AND user_id = ?`
+    );
+    return stmt.run(...values, guildId, userId);
+  }
+
+  public getMusicSettings(guildId: string): Types.MusicSettings | undefined {
+    const stmt = this.db.prepare('SELECT * FROM music_settings WHERE guild_id = ?');
+    return stmt.get(guildId) as Types.MusicSettings | undefined;
+  }
+
+  public createMusicSettings(guildId: string) {
+    const stmt = this.db.prepare('INSERT OR IGNORE INTO music_settings (guild_id) VALUES (?)');
+    return stmt.run(guildId);
+  }
+
+  public updateMusicSettings(guildId: string, settings: Partial<Types.MusicSettings>) {
+    const allowedColumns = ['dj_role_id', 'volume', 'loop_mode', 'auto_leave', 'auto_leave_timeout', 'twentyfour_seven', 'vote_skip_enabled', 'vote_skip_threshold', 'max_queue_size', 'max_track_duration', 'enabled'];
+    const validKeys = Object.keys(settings).filter(key => allowedColumns.includes(key));
+
+    if (validKeys.length === 0) return false;
+
+    const values = validKeys.map(key => settings[key as keyof typeof settings]);
+    const setClause = validKeys.map(key => `${key} = ?`).join(', ');
+    const stmt = this.db.prepare(`UPDATE music_settings SET ${setClause} WHERE guild_id = ?`);
+    return stmt.run(...values, guildId);
+  }
+
+  public getOrCreateMusicSettings(guildId: string): Types.MusicSettings {
+    let settings = this.getMusicSettings(guildId);
+    if (!settings) {
+      this.createMusicSettings(guildId);
+      settings = this.getMusicSettings(guildId);
+    }
+    return settings as Types.MusicSettings;
+  }
+
+  public saveMusicQueue(queue: Types.MusicQueue) {
+    const stmt = this.db.prepare(`
+      INSERT INTO music_queues (guild_id, tracks, current_track, volume, loop_mode, is_playing, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(guild_id) DO UPDATE SET
+        tracks = excluded.tracks,
+        current_track = excluded.current_track,
+        volume = excluded.volume,
+        loop_mode = excluded.loop_mode,
+        is_playing = excluded.is_playing,
+        updated_at = excluded.updated_at
+    `);
+    return stmt.run(
+      queue.guild_id,
+      queue.tracks,
+      queue.current_track,
+      queue.volume,
+      queue.loop_mode,
+      queue.is_playing ? 1 : 0,
+      queue.updated_at
+    );
+  }
+
+  public getMusicQueue(guildId: string): Types.MusicQueue | undefined {
+    const stmt = this.db.prepare('SELECT * FROM music_queues WHERE guild_id = ?');
+    return stmt.get(guildId) as Types.MusicQueue | undefined;
+  }
+
+  public getAllMusicQueues(): Types.MusicQueue[] {
+    const stmt = this.db.prepare('SELECT * FROM music_queues');
+    return stmt.all() as Types.MusicQueue[];
+  }
+
+  public deleteMusicQueue(guildId: string) {
+    const stmt = this.db.prepare('DELETE FROM music_queues WHERE guild_id = ?');
+    return stmt.run(guildId);
+  }
+
+  public getCommandRestrictions(guildId: string): Types.CommandRestriction | undefined {
+    const stmt = this.db.prepare('SELECT * FROM command_restrictions WHERE guild_id = ?');
+    return stmt.get(guildId) as Types.CommandRestriction | undefined;
+  }
+
+  public createCommandRestrictions(guildId: string) {
+    const stmt = this.db.prepare('INSERT OR IGNORE INTO command_restrictions (guild_id) VALUES (?)');
+    return stmt.run(guildId);
+  }
+
+  public updateCommandRestrictions(guildId: string, settings: Partial<Types.CommandRestriction>) {
+    const allowedColumns = ['enabled', 'blacklisted_channels', 'exception_roles', 'exception_permissions'];
+    const validKeys = Object.keys(settings).filter(key => allowedColumns.includes(key));
+
+    if (validKeys.length === 0) return false;
+
+    const existing = this.getCommandRestrictions(guildId);
+
+    if (!existing) {
+      this.createCommandRestrictions(guildId);
+    }
+
+    const values = validKeys.map(key => {
+      const value = settings[key as keyof typeof settings];
+      if (typeof value === 'boolean') return value ? 1 : 0;
+      if (value === null || value === undefined) return null;
+      return value;
+    });
+    const setClause = validKeys.map(key => `${key} = ?`).join(', ');
+    const stmt = this.db.prepare(`UPDATE command_restrictions SET ${setClause} WHERE guild_id = ?`);
+    return stmt.run(...values, guildId);
+  }
+
+  public getOrCreateCommandRestrictions(guildId: string): Types.CommandRestriction {
+    let restrictions = this.getCommandRestrictions(guildId);
+    if (!restrictions) {
+      this.createCommandRestrictions(guildId);
+      restrictions = this.getCommandRestrictions(guildId);
+    }
+    return restrictions as Types.CommandRestriction;
+  }
+
+  public saveAltDetectionScore(guildId: string, userId: string, score: number, flags: string) {
+    const stmt = this.db.prepare(`
+      INSERT INTO alt_detection_scores (guild_id, user_id, score, flags)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(guild_id, user_id) DO UPDATE SET
+        score = excluded.score,
+        flags = excluded.flags,
+        created_at = excluded.created_at
+    `);
+    return stmt.run(guildId, userId, score, flags);
+  }
+
+  public getAltDetectionScore(guildId: string, userId: string): Types.AltDetectionScore | undefined {
+    const stmt = this.db.prepare('SELECT * FROM alt_detection_scores WHERE guild_id = ? AND user_id = ?');
+    return stmt.get(guildId, userId) as Types.AltDetectionScore | undefined;
+  }
+
+  public getAltDetectionScores(guildId: string, minScore: number = 0): Types.AltDetectionScore[] {
+    const stmt = this.db.prepare('SELECT * FROM alt_detection_scores WHERE guild_id = ? AND score >= ? ORDER BY score DESC');
+    return stmt.all(guildId, minScore) as Types.AltDetectionScore[];
+  }
+
+  public deleteAltDetectionScore(guildId: string, userId: string) {
+    const stmt = this.db.prepare('DELETE FROM alt_detection_scores WHERE guild_id = ? AND user_id = ?');
+    return stmt.run(guildId, userId);
+  }
+
+  public clearAltDetectionScores(guildId: string) {
+    const stmt = this.db.prepare('DELETE FROM alt_detection_scores WHERE guild_id = ?');
+    return stmt.run(guildId);
   }
 }

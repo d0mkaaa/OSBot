@@ -6,25 +6,41 @@ import { logger } from '../utils/logger.js';
 import { autoModerator } from '../utils/automod.js';
 import { broadcastMessage } from '../dashboard/websocket.js';
 import { t } from '../utils/i18n.js';
+import { AnalyticsTracker } from '../utils/analytics-tracker.js';
 
 const AFK_CLEANUP_INTERVAL = 3600000;
 const AFK_MAX_AGE = 172800000;
 
-setInterval(() => {
-  const now = Date.now();
-  let cleaned = 0;
+let afkCleanupInterval: NodeJS.Timeout | null = null;
 
-  for (const [userId, afkData] of afkUsers.entries()) {
-    if (now - afkData.since > AFK_MAX_AGE) {
-      afkUsers.delete(userId);
-      cleaned++;
+function startAfkCleanup() {
+  if (afkCleanupInterval) return;
+
+  afkCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [userId, afkData] of afkUsers.entries()) {
+      if (now - afkData.since > AFK_MAX_AGE) {
+        afkUsers.delete(userId);
+        cleaned++;
+      }
     }
-  }
 
-  if (cleaned > 0) {
-    logger.info(`Cleaned up ${cleaned} expired AFK entries`);
+    if (cleaned > 0) {
+      logger.info(`Cleaned up ${cleaned} expired AFK entries`);
+    }
+  }, AFK_CLEANUP_INTERVAL);
+}
+
+export function stopAfkCleanup() {
+  if (afkCleanupInterval) {
+    clearInterval(afkCleanupInterval);
+    afkCleanupInterval = null;
   }
-}, AFK_CLEANUP_INTERVAL);
+}
+
+startAfkCleanup();
 
 const event: BotEvent = {
   name: Events.MessageCreate,
@@ -35,6 +51,9 @@ const event: BotEvent = {
 
     const db = DatabaseManager.getInstance();
     const guildData = db.getGuild(message.guild.id) as any;
+    const analytics = AnalyticsTracker.getInstance();
+
+    analytics.trackMessage(message.guild.id, message.author.id, message.channel.id);
 
     try {
       broadcastMessage(message.channel.id, {
@@ -118,15 +137,38 @@ const event: BotEvent = {
     if (guildData?.xp_enabled) {
       try {
         const cooldownSeconds = guildData.xp_cooldown || 60;
-        const onCooldown = db.checkXPCooldown(message.guild.id, message.author.id, cooldownSeconds);
+        const canGainXP = db.checkAndUpdateXPCooldown(message.guild.id, message.author.id, cooldownSeconds);
 
-        if (!onCooldown) {
+        if (canGainXP) {
           const xpMin = guildData.xp_min || 15;
           const xpMax = guildData.xp_max || 25;
-          const xpGain = Math.floor(Math.random() * (xpMax - xpMin + 1)) + xpMin;
+          let xpGain = Math.floor(Math.random() * (xpMax - xpMin + 1)) + xpMin;
+
+          const member = message.member;
+          if (member) {
+            const roleBoosters = db.getRoleXPBoosters(message.guild.id) as any[];
+            const channelBoosters = db.getChannelXPBoosters(message.guild.id) as any[];
+
+            let highestMultiplier = 1.0;
+
+            for (const booster of roleBoosters) {
+              if (member.roles.cache.has(booster.target_id)) {
+                highestMultiplier = Math.max(highestMultiplier, booster.multiplier);
+              }
+            }
+
+            for (const booster of channelBoosters) {
+              if (booster.target_id === message.channel.id) {
+                highestMultiplier = Math.max(highestMultiplier, booster.multiplier);
+              }
+            }
+
+            if (highestMultiplier > 1.0) {
+              xpGain = Math.floor(xpGain * highestMultiplier);
+            }
+          }
 
           const result = db.addXP(message.guild.id, message.author.id, xpGain);
-          db.updateXPCooldown(message.guild.id, message.author.id);
 
           if (result.leveled && guildData.level_up_enabled) {
             const levelRoles = db.getLevelRoles(message.guild.id) as any[];

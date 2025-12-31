@@ -3,23 +3,58 @@ import { DatabaseManager } from '../database/Database.js';
 import { logger } from './logger.js';
 import { PROFANITY_PRESETS } from './profanity-list.js';
 import { t } from './i18n.js';
+import { areMessagesSimilar } from './similarity.js';
+import { phishingDetector } from './phishing-detector.js';
 
 interface SpamTracker {
   messages: number[];
   lastCleanup: number;
 }
 
-const spamTracking = new Map<string, SpamTracker>();
-const SPAM_CLEANUP_INTERVAL = 60000;
+interface MessageHistory {
+  content: string;
+  timestamp: number;
+}
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, tracker] of spamTracking.entries()) {
-    if (now - tracker.lastCleanup > SPAM_CLEANUP_INTERVAL) {
-      spamTracking.delete(key);
+const spamTracking = new Map<string, SpamTracker>();
+const messageHistory = new Map<string, MessageHistory[]>();
+const SPAM_CLEANUP_INTERVAL = 60000;
+const MESSAGE_HISTORY_LIMIT = 10;
+const MESSAGE_HISTORY_WINDOW = 30000;
+
+let automodCleanupInterval: NodeJS.Timeout | null = null;
+
+function startAutomodCleanup() {
+  if (automodCleanupInterval) return;
+
+  automodCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, tracker] of spamTracking.entries()) {
+      if (now - tracker.lastCleanup > SPAM_CLEANUP_INTERVAL) {
+        spamTracking.delete(key);
+      }
     }
+    for (const [key, history] of messageHistory.entries()) {
+      const filtered = history.filter(msg => now - msg.timestamp < MESSAGE_HISTORY_WINDOW);
+      if (filtered.length === 0) {
+        messageHistory.delete(key);
+      } else {
+        messageHistory.set(key, filtered);
+      }
+    }
+  }, SPAM_CLEANUP_INTERVAL);
+}
+
+export function stopAutomodCleanup() {
+  if (automodCleanupInterval) {
+    clearInterval(automodCleanupInterval);
+    automodCleanupInterval = null;
   }
-}, SPAM_CLEANUP_INTERVAL);
+  spamTracking.clear();
+  messageHistory.clear();
+}
+
+startAutomodCleanup();
 
 export class AutoModerator {
   private db: DatabaseManager;
@@ -37,9 +72,31 @@ export class AutoModerator {
     const member = message.member as GuildMember;
     if (member.permissions.has('Administrator')) return false;
 
+    if (settings.exempt_roles) {
+      const exemptRoles = settings.exempt_roles.split(',').map((r: string) => r.trim()).filter((r: string) => r.length > 0);
+      if (exemptRoles.length > 0 && member.roles.cache.some(role => exemptRoles.includes(role.id))) {
+        return false;
+      }
+    }
+
+    if (settings.exempt_channels) {
+      const exemptChannels = settings.exempt_channels.split(',').map((c: string) => c.trim()).filter((c: string) => c.length > 0);
+      if (exemptChannels.length > 0 && exemptChannels.includes(message.channel.id)) {
+        return false;
+      }
+    }
+
     let violated = false;
 
     if (settings.spam_enabled && await this.checkSpam(message, settings)) {
+      violated = true;
+    }
+
+    if (settings.spam_similarity_enabled && await this.checkSimilarMessages(message, settings)) {
+      violated = true;
+    }
+
+    if (!violated && await this.checkCustomFilters(message, settings)) {
       violated = true;
     }
 
@@ -60,6 +117,10 @@ export class AutoModerator {
     }
 
     if (settings.invites_enabled && await this.checkInvites(message, settings)) {
+      violated = true;
+    }
+
+    if (settings.phishing_enabled && await this.checkPhishing(message, settings)) {
       violated = true;
     }
 
@@ -93,7 +154,7 @@ export class AutoModerator {
   }
 
   private async checkLinks(message: Message, settings: any): Promise<boolean> {
-    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+    const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)/gi;
     const urls = message.content.match(urlRegex);
 
     if (!urls) return false;
@@ -123,7 +184,7 @@ export class AutoModerator {
 
   private async checkCaps(message: Message, settings: any): Promise<boolean> {
     const guildConfig = this.db.getGuild(message.guild!.id) as any;
-    const minLength = guildConfig?.automod_caps_min_length || 10;
+    const minLength = settings.caps_min_length || guildConfig?.automod_caps_min_length || 10;
 
     if (message.content.length < minLength) return false;
 
@@ -133,7 +194,7 @@ export class AutoModerator {
     if (totalLetters === 0) return false;
 
     const capsPercentage = (capsCount / totalLetters) * 100;
-    const threshold = guildConfig?.automod_caps_percentage || settings.caps_threshold || 70;
+    const threshold = settings.caps_threshold || guildConfig?.automod_caps_percentage || 70;
 
     if (capsPercentage >= threshold) {
       await this.takeAction(message, 'caps', settings.action);
@@ -158,8 +219,11 @@ export class AutoModerator {
 
   private async checkProfanity(message: Message, settings: any): Promise<boolean> {
     const guildConfig = this.db.getGuild(message.guild!.id) as any;
-    const preset = guildConfig?.automod_profanity_preset || 'moderate';
-    const customList = guildConfig?.automod_profanity_list || '';
+    const preset = settings.profanity_preset || guildConfig?.automod_profanity_preset || 'moderate';
+    const customList = settings.profanity_list || guildConfig?.automod_profanity_list || '';
+    const useWordBoundaries = settings.profanity_use_word_boundaries !== undefined
+      ? settings.profanity_use_word_boundaries
+      : true;
 
     let words: string[] = [];
 
@@ -186,9 +250,18 @@ export class AutoModerator {
     const content = message.content.toLowerCase();
 
     for (const word of words) {
-      if (content.includes(word)) {
-        await this.takeAction(message, 'profanity', settings.action);
-        return true;
+      if (useWordBoundaries) {
+        const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedWord}\\b`, 'i');
+        if (regex.test(content)) {
+          await this.takeAction(message, 'profanity', settings.action);
+          return true;
+        }
+      } else {
+        if (content.includes(word)) {
+          await this.takeAction(message, 'profanity', settings.action);
+          return true;
+        }
       }
     }
 
@@ -196,13 +269,13 @@ export class AutoModerator {
   }
 
   private async checkInvites(message: Message, settings: any): Promise<boolean> {
-    const inviteRegex = /(discord\.gg\/[a-zA-Z0-9]+|discordapp\.com\/invite\/[a-zA-Z0-9]+|discord\.com\/invite\/[a-zA-Z0-9]+)/gi;
+    const inviteRegex = /(discord\.gg\/[a-zA-Z0-9_-]+|discord\.com\/invite\/[a-zA-Z0-9_-]+|discordapp\.com\/invite\/[a-zA-Z0-9_-]+|discord\.new\/[a-zA-Z0-9_-]+)/gi;
     const invites = message.content.match(inviteRegex);
 
     if (!invites) return false;
 
     const guildConfig = this.db.getGuild(message.guild!.id) as any;
-    const allowedServerIds = guildConfig?.automod_allow_invites_list || '';
+    const allowedServerIds = settings.invites_allowlist || guildConfig?.automod_allow_invites_list || '';
 
     const allowedServers = allowedServerIds.includes('\n')
       ? allowedServerIds.split('\n').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
@@ -233,6 +306,65 @@ export class AutoModerator {
         await this.takeAction(message, 'invites', settings.action);
         return true;
       }
+    }
+
+    return false;
+  }
+
+  private async checkSimilarMessages(message: Message, settings: any): Promise<boolean> {
+    const key = `${message.guild!.id}-${message.author.id}`;
+    const now = Date.now();
+    const threshold = settings.spam_similarity_threshold || 80;
+
+    let history = messageHistory.get(key) || [];
+    history = history.filter(msg => now - msg.timestamp < MESSAGE_HISTORY_WINDOW);
+
+    for (const historicMsg of history) {
+      if (areMessagesSimilar(message.content, historicMsg.content, threshold)) {
+        await this.takeAction(message, 'spam_similarity', settings.action);
+        return true;
+      }
+    }
+
+    history.push({ content: message.content, timestamp: now });
+    if (history.length > MESSAGE_HISTORY_LIMIT) {
+      history = history.slice(-MESSAGE_HISTORY_LIMIT);
+    }
+    messageHistory.set(key, history);
+
+    return false;
+  }
+
+  private async checkCustomFilters(message: Message, _settings: any): Promise<boolean> {
+    const customFilters = this.db.getEnabledCustomFilters(message.guild!.id) as any[];
+
+    if (!customFilters || customFilters.length === 0) return false;
+
+    for (const filter of customFilters) {
+      try {
+        const regex = new RegExp(filter.pattern, 'i');
+        if (regex.test(message.content)) {
+          await this.takeAction(message, `custom_filter:${filter.name}`, filter.action);
+          return true;
+        }
+      } catch (error) {
+        logger.warn(`Invalid regex pattern in custom filter "${filter.name}": ${filter.pattern}`);
+      }
+    }
+
+    return false;
+  }
+
+  private async checkPhishing(message: Message, settings: any): Promise<boolean> {
+    const result = phishingDetector.checkMessage(message);
+
+    if (result.isPhishing) {
+      const violationType = result.domain
+        ? `phishing:${result.type}:${result.domain}`
+        : `phishing:${result.type}`;
+
+      await this.takeAction(message, violationType, settings.phishing_action || 'warn');
+      return true;
     }
 
     return false;

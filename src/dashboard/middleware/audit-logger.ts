@@ -85,6 +85,7 @@ function shouldLogAction(method: string, resource: string): boolean {
   if (resource.startsWith('/auth/user')) return false;
   if (resource.startsWith('/auth/callback')) return false;
   if (resource === '/api/health') return false;
+  if (resource.includes('/music/') && resource.endsWith('/volume')) return false;
 
   const modifyingMethods = ['POST', 'PATCH', 'PUT', 'DELETE'];
   const importantGets = [

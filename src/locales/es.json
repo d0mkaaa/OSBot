@@ -8,7 +8,10 @@
       "role_not_found": "❌ ¡Rol no encontrado!",
       "channel_not_found": "❌ ¡Canal no encontrado!",
       "message_not_found": "❌ ¡Mensaje no encontrado!",
-      "failed": "❌ ¡Error al ejecutar el comando!"
+      "failed": "❌ ¡Error al ejecutar el comando!",
+      "module_disabled": "❌ ¡El módulo {module} está deshabilitado en este servidor!",
+      "role_hierarchy": "❌ ¡No puedes afectar a este usuario porque su rol es mayor o igual al tuyo!",
+      "bot_role_hierarchy": "❌ ¡No puedo afectar a este usuario porque su rol es mayor o igual al mío!"
     },
     "success": "✅ ¡Éxito!",
     "loading": "⏳ Procesando...",
@@ -434,6 +437,60 @@
       "status_ended": "✅ Finalizada",
       "status_active": "🔴 Activa",
       "showing_last": "Mostrando últimas {count} encuestas"
+    },
+    "commandrestrict": {
+      "enabled": "✅ Las restricciones de comandos han sido habilitadas",
+      "disabled": "❌ Las restricciones de comandos han sido deshabilitadas",
+      "blocked": "❌ No puedes usar comandos en este canal",
+      "channel": {
+        "added": "✅ Se añadió {channel} a la lista negra",
+        "removed": "✅ Se eliminó {channel} de la lista negra",
+        "already_blacklisted": "❌ {channel} ya está en la lista negra",
+        "not_blacklisted": "❌ {channel} no está en la lista negra",
+        "no_channels": "No hay canales en la lista negra actualmente",
+        "list_title": "🚫 Canales en Lista Negra"
+      },
+      "role": {
+        "added": "✅ Se añadió {role} como rol de excepción",
+        "removed": "✅ Se eliminó {role} de los roles de excepción",
+        "already_exception": "❌ {role} ya es un rol de excepción",
+        "not_exception": "❌ {role} no es un rol de excepción",
+        "no_roles": "No hay roles de excepción configurados",
+        "list_title": "✨ Roles de Excepción"
+      },
+      "permission": {
+        "added": "✅ Se añadió {permission} como permiso de excepción",
+        "removed": "✅ Se eliminó {permission} de los permisos de excepción",
+        "already_exception": "❌ {permission} ya es un permiso de excepción",
+        "not_exception": "❌ {permission} no es un permiso de excepción",
+        "no_permissions": "No hay permisos de excepción configurados",
+        "list_title": "🔑 Permisos de Excepción"
+      },
+      "status": {
+        "title": "⚙️ Estado de Restricciones de Comandos",
+        "system": "Sistema",
+        "enabled": "✅ Habilitado",
+        "disabled": "❌ Deshabilitado",
+        "blacklisted_channels": "🚫 Canales en Lista Negra",
+        "exception_roles": "✨ Roles de Excepción",
+        "exception_permissions": "🔑 Permisos de Excepción",
+        "none": "Ninguno"
+      }
+    },
+    "music": {
+      "not_in_voice": "❌ ¡Debes estar en un canal de voz!",
+      "different_voice": "❌ ¡Debes estar en el mismo canal de voz que el bot!",
+      "nothing_playing": "❌ ¡No se está reproduciendo nada actualmente!",
+      "queue_empty": "❌ ¡La cola está vacía!",
+      "invalid_volume": "❌ ¡El volumen debe estar entre 0 y 100!",
+      "dj_only": "❌ ¡Solo los usuarios con el rol de DJ pueden usar este comando!",
+      "disabled": "❌ ¡La música está deshabilitada en este servidor!"
+    },
+    "voteskip": {
+      "disabled": "❌ ¡El salto por votación está deshabilitado en este servidor!",
+      "voted": "✅ ¡Voto registrado! {votes}/{required} votos necesarios para saltar",
+      "skipped": "⏭️ ¡Canción saltada! ({votes}/{required} votos)",
+      "error": "❌ ¡Error al registrar el voto de salto!"
     }
   }
 }

@@ -5,7 +5,7 @@ import { logger } from './logger.js';
 export class AnalyticsCollector {
   private client: Client;
   private db: DatabaseManager;
-  private collectionInterval: Timer | null = null;
+  private collectionInterval: NodeJS.Timeout | null = null;
   private hourlyBucket: number = 0;
 
   constructor(client: Client) {

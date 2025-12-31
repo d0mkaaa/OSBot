@@ -8,7 +8,10 @@
       "role_not_found": "❌ Rôle introuvable!",
       "channel_not_found": "❌ Salon introuvable!",
       "message_not_found": "❌ Message introuvable!",
-      "failed": "❌ Échec de l'exécution de la commande!"
+      "failed": "❌ Échec de l'exécution de la commande!",
+      "module_disabled": "❌ Le module {module} est désactivé sur ce serveur!",
+      "role_hierarchy": "❌ Vous ne pouvez pas cibler cet utilisateur car son rôle est supérieur ou égal au vôtre!",
+      "bot_role_hierarchy": "❌ Je ne peux pas cibler cet utilisateur car son rôle est supérieur ou égal au mien!"
     },
     "success": "✅ Succès!",
     "loading": "⏳ Traitement...",
@@ -374,6 +377,60 @@
       "invite_tracking": "📨 Suivi des Invitations",
       "enabled_status": "✅ Activé",
       "disabled_status": "❌ Désactivé"
+    },
+    "commandrestrict": {
+      "enabled": "✅ Les restrictions de commandes ont été activées",
+      "disabled": "❌ Les restrictions de commandes ont été désactivées",
+      "blocked": "❌ Vous ne pouvez pas utiliser de commandes dans ce canal",
+      "channel": {
+        "added": "✅ Ajout de {channel} à la liste noire",
+        "removed": "✅ Suppression de {channel} de la liste noire",
+        "already_blacklisted": "❌ {channel} est déjà sur la liste noire",
+        "not_blacklisted": "❌ {channel} n'est pas sur la liste noire",
+        "no_channels": "Aucun canal n'est actuellement sur la liste noire",
+        "list_title": "🚫 Canaux en Liste Noire"
+      },
+      "role": {
+        "added": "✅ Ajout de {role} comme rôle d'exception",
+        "removed": "✅ Suppression de {role} des rôles d'exception",
+        "already_exception": "❌ {role} est déjà un rôle d'exception",
+        "not_exception": "❌ {role} n'est pas un rôle d'exception",
+        "no_roles": "Aucun rôle d'exception n'est configuré",
+        "list_title": "✨ Rôles d'Exception"
+      },
+      "permission": {
+        "added": "✅ Ajout de {permission} comme permission d'exception",
+        "removed": "✅ Suppression de {permission} des permissions d'exception",
+        "already_exception": "❌ {permission} est déjà une permission d'exception",
+        "not_exception": "❌ {permission} n'est pas une permission d'exception",
+        "no_permissions": "Aucune permission d'exception n'est configurée",
+        "list_title": "🔑 Permissions d'Exception"
+      },
+      "status": {
+        "title": "⚙️ État des Restrictions de Commandes",
+        "system": "Système",
+        "enabled": "✅ Activé",
+        "disabled": "❌ Désactivé",
+        "blacklisted_channels": "🚫 Canaux en Liste Noire",
+        "exception_roles": "✨ Rôles d'Exception",
+        "exception_permissions": "🔑 Permissions d'Exception",
+        "none": "Aucun"
+      }
+    },
+    "music": {
+      "not_in_voice": "❌ Vous devez être dans un canal vocal !",
+      "different_voice": "❌ Vous devez être dans le même canal vocal que le bot !",
+      "nothing_playing": "❌ Rien n'est en cours de lecture actuellement !",
+      "queue_empty": "❌ La file d'attente est vide !",
+      "invalid_volume": "❌ Le volume doit être entre 0 et 100 !",
+      "dj_only": "❌ Seuls les utilisateurs avec le rôle DJ peuvent utiliser cette commande !",
+      "disabled": "❌ La musique est désactivée sur ce serveur !"
+    },
+    "voteskip": {
+      "disabled": "❌ Le vote pour passer est désactivé sur ce serveur !",
+      "voted": "✅ Vote enregistré ! {votes}/{required} votes nécessaires pour passer",
+      "skipped": "⏭️ Piste sautée ! ({votes}/{required} votes)",
+      "error": "❌ Échec de l'enregistrement du vote pour passer !"
     }
   }
 }

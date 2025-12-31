@@ -4,6 +4,10 @@ import { logger } from '../utils/logger.js';
 import { globalRateLimiter } from '../utils/rate-limit.js';
 import { DatabaseManager } from '../database/Database.js';
 import { buildCustomEmbed } from '../utils/embedBuilder.js';
+import { AnalyticsTracker } from '../utils/analytics-tracker.js';
+import { canExecuteCommand } from '../utils/command-restrictions.js';
+import { getInteractionLocale } from '../utils/locale-helper.js';
+import { t } from '../utils/i18n.js';
 
 const event: BotEvent = {
   name: Events.InteractionCreate,
@@ -175,7 +179,7 @@ const event: BotEvent = {
             }
           }
 
-          db.closeTicket(interaction.channelId, interaction.user.id, transcript);
+          db.closeTicket(interaction.channelId, interaction.user.id, transcriptJson);
 
           let closeEmbed: EmbedBuilder;
 
@@ -244,6 +248,15 @@ const event: BotEvent = {
       return;
     }
 
+    if (!canExecuteCommand(interaction)) {
+      const locale = getInteractionLocale(interaction);
+      await interaction.reply({
+        content: t('commands.commandrestrict.blocked', locale),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
     if (globalRateLimiter.isOnCooldown(interaction.user.id, interaction.commandName)) {
       const remaining = globalRateLimiter.getRemainingCooldown(interaction.user.id, interaction.commandName);
       await interaction.reply({
@@ -253,9 +266,59 @@ const event: BotEvent = {
       return;
     }
 
+    if (interaction.guildId) {
+      const db = DatabaseManager.getInstance();
+      const guildConfig = db.getGuild(interaction.guildId) as any;
+
+      const musicCommands = ['play', 'pause', 'resume', 'skip', 'stop', 'queue', 'nowplaying', 'loop', 'shuffle', 'volume', 'voteskip'];
+      const moderationCommands = ['ban', 'kick', 'warn', 'mute', 'unmute', 'clear', 'lockdown', 'softban', 'tempban', 'unban', 'slowmode', 'massrole'];
+      const ticketCommands = ['ticket'];
+      const levelingCommands = ['rank', 'leaderboard', 'setlevel', 'addxp', 'removexp'];
+
+      if (guildConfig) {
+        if (!guildConfig.music_enabled && musicCommands.includes(interaction.commandName)) {
+          await interaction.reply({
+            content: '🎵 Music system is disabled on this server.',
+            flags: MessageFlags.Ephemeral
+          });
+          return;
+        }
+
+        if (!guildConfig.moderation_enabled && moderationCommands.includes(interaction.commandName)) {
+          await interaction.reply({
+            content: '🔨 Moderation features are disabled on this server.',
+            flags: MessageFlags.Ephemeral
+          });
+          return;
+        }
+
+        if (!guildConfig.tickets_enabled && ticketCommands.includes(interaction.commandName)) {
+          await interaction.reply({
+            content: '🎫 Ticket system is disabled on this server.',
+            flags: MessageFlags.Ephemeral
+          });
+          return;
+        }
+
+        if (!guildConfig.leveling_enabled && levelingCommands.includes(interaction.commandName)) {
+          await interaction.reply({
+            content: '📈 Leveling system is disabled on this server.',
+            flags: MessageFlags.Ephemeral
+          });
+          return;
+        }
+      }
+    }
+
     try {
       await command.execute(interaction);
       globalRateLimiter.setCooldown(interaction.user.id, interaction.commandName);
+
+      if (interaction.guildId) {
+        const analytics = AnalyticsTracker.getInstance();
+        analytics.trackCommand(interaction.guildId, interaction.commandName);
+      }
+
       logger.info(`${interaction.user.tag} executed /${interaction.commandName}`);
     } catch (error) {
       logger.error(`Error executing ${interaction.commandName}`, error);

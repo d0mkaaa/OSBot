@@ -1,6 +1,9 @@
 import { Events, VoiceState, EmbedBuilder, TextChannel } from 'discord.js';
 import { BotEvent } from '../types/index.js';
 import { DatabaseManager } from '../database/Database.js';
+import { MusicManager } from '../music/MusicManager.js';
+
+const autoLeaveTimeouts = new Map<string, NodeJS.Timeout>();
 
 const event: BotEvent = {
   name: Events.VoiceStateUpdate,
@@ -10,6 +13,8 @@ const event: BotEvent = {
 
     const db = DatabaseManager.getInstance();
     const guildData = db.getGuild(oldState.guild.id) as any;
+
+    handleMusicAutoLeave(oldState, newState);
 
     if (!guildData?.log_voice_activity || !guildData?.log_channel_id) return;
 
@@ -79,5 +84,73 @@ const event: BotEvent = {
     }
   }
 };
+
+function handleMusicAutoLeave(oldState: VoiceState, newState: VoiceState): void {
+  const guild = newState.guild;
+  if (!guild) return;
+
+  const musicManager = MusicManager.getInstance();
+  const queue = musicManager.getQueue(guild.id);
+
+  if (!queue) return;
+
+  const botMember = guild.members.me;
+  if (!botMember) return;
+
+  const botVoiceChannel = botMember.voice.channel;
+  if (!botVoiceChannel) return;
+
+  const db = DatabaseManager.getInstance();
+  const musicSettings = db.getOrCreateMusicSettings(guild.id);
+
+  if (musicSettings.twentyfour_seven) {
+    return;
+  }
+
+  if (oldState.channelId === botVoiceChannel.id) {
+    const membersInChannel = botVoiceChannel.members.filter(m => !m.user.bot);
+
+    if (membersInChannel.size === 0 && musicSettings.auto_leave) {
+      const existingTimeout = autoLeaveTimeouts.get(guild.id);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        autoLeaveTimeouts.delete(guild.id);
+      }
+
+      const timeoutMs = Math.max(1000, (musicSettings.auto_leave_timeout || 60) * 1000);
+
+      const timeout = setTimeout(() => {
+        const currentChannel = guild.members.me?.voice.channel;
+        if (!currentChannel) {
+          autoLeaveTimeouts.delete(guild.id);
+          return;
+        }
+
+        const currentMembers = currentChannel.members.filter(m => !m.user.bot);
+        if (currentMembers.size === 0) {
+          musicManager.stop(guild.id);
+        }
+        autoLeaveTimeouts.delete(guild.id);
+      }, timeoutMs);
+
+      autoLeaveTimeouts.set(guild.id, timeout);
+    } else if (membersInChannel.size > 0) {
+      const existingTimeout = autoLeaveTimeouts.get(guild.id);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        autoLeaveTimeouts.delete(guild.id);
+      }
+    }
+  }
+
+  if (newState.member?.id === botMember.id && newState.channelId === null) {
+    const existingTimeout = autoLeaveTimeouts.get(guild.id);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+      autoLeaveTimeouts.delete(guild.id);
+    }
+    musicManager.stop(guild.id);
+  }
+}
 
 export default event;

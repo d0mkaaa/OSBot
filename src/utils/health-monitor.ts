@@ -128,7 +128,7 @@ export class HealthMonitor {
       const db = DatabaseManager.getInstance();
       const dbInstance = db.getDb();
 
-      dbInstance.query('SELECT 1').get();
+      dbInstance.prepare('SELECT 1').get();
 
       const responseTime = Date.now() - start;
       return { connected: true, responseTime };

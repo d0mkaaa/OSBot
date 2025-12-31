@@ -42,6 +42,17 @@ const command: Command = {
       return;
     }
 
+    const db = DatabaseManager.getInstance();
+    const guildData = db.getGuild(interaction.guild.id) as any;
+
+    if (!guildData?.moderation_enabled) {
+      await interaction.reply({
+        content: t('common.errors.module_disabled', locale, { module: 'moderation' }),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
     const targetUser = interaction.options.getUser('target', true);
     const reason = interaction.options.getString('reason') || t('commands.ban.no_reason', locale);
     const deleteMessageDays = interaction.options.getInteger('delete-messages') || 0;

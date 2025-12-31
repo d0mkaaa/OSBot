@@ -128,5 +128,89 @@ export function createBackupsRoutes(client: any): Router {
     }
   });
 
+  router.get('/system/backups', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const backups = backupManager.listBackups();
+
+      const formatted = backups.map((backup: any) => ({
+        name: backup.name,
+        size: backup.size,
+        date: backup.date,
+        isAuto: backup.name.startsWith('auto_'),
+        isManual: backup.name.startsWith('manual_'),
+        isPreRestore: backup.name.startsWith('pre_restore_')
+      }));
+
+      res.json({ success: true, data: formatted });
+    } catch (error) {
+      console.error('Failed to list system backups:', error);
+      res.status(500).json({ success: false, error: 'Failed to list system backups' });
+    }
+  });
+
+  router.get('/system/backups/status', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const status = backupManager.getStatus();
+      res.json({ success: true, data: status });
+    } catch (error) {
+      console.error('Failed to get backup status:', error);
+      res.status(500).json({ success: false, error: 'Failed to get backup status' });
+    }
+  });
+
+  router.post('/system/backups/auto-backup/toggle', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { enabled, intervalHours = 24 } = req.body;
+
+      if (enabled) {
+        backupManager.startAutoBackup(intervalHours);
+      } else {
+        backupManager.stopAutoBackup();
+      }
+
+      const status = backupManager.getStatus();
+      res.json({ success: true, data: status });
+    } catch (error) {
+      console.error('Failed to toggle auto-backup:', error);
+      res.status(500).json({ success: false, error: 'Failed to toggle auto-backup' });
+    }
+  });
+
+  router.post('/system/backups/create', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const result = await backupManager.createBackup(true);
+
+      if (result.success) {
+        res.json({ success: true, data: result });
+      } else {
+        res.status(500).json({ success: false, error: result.error || 'Failed to create backup' });
+      }
+    } catch (error) {
+      console.error('Failed to create system backup:', error);
+      res.status(500).json({ success: false, error: 'Failed to create system backup' });
+    }
+  });
+
+  router.post('/system/backups/restore', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { backupName } = req.body;
+
+      if (!backupName) {
+        return res.status(400).json({ success: false, error: 'Backup name is required' });
+      }
+
+      const result = await backupManager.restoreBackup(backupName);
+
+      if (result.success) {
+        res.json({ success: true, data: result });
+      } else {
+        res.status(500).json({ success: false, error: result.error || 'Failed to restore backup' });
+      }
+    } catch (error) {
+      console.error('Failed to restore system backup:', error);
+      res.status(500).json({ success: false, error: 'Failed to restore system backup' });
+    }
+  });
+
   return router;
 }

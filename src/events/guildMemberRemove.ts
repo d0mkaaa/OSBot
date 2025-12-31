@@ -3,6 +3,7 @@ import { BotEvent } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { DatabaseManager } from '../database/Database.js';
 import { buildCustomEmbed } from '../utils/embedBuilder.js';
+import { AnalyticsTracker } from '../utils/analytics-tracker.js';
 
 const event: BotEvent = {
   name: Events.GuildMemberRemove,
@@ -11,7 +12,10 @@ const event: BotEvent = {
     logger.info(`Member left: ${member.user.tag} from ${member.guild.name}`);
 
     const db = DatabaseManager.getInstance();
+    const analytics = AnalyticsTracker.getInstance();
     const guildData = db.getGuild(member.guild.id) as any;
+
+    analytics.trackMemberLeave(member.guild.id);
 
     if (!guildData || !guildData.goodbye_enabled) {
       return;

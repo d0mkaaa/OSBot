@@ -8,7 +8,10 @@
       "role_not_found": "❌ Role not found!",
       "channel_not_found": "❌ Channel not found!",
       "message_not_found": "❌ Message not found!",
-      "failed": "❌ Failed to execute command!"
+      "failed": "❌ Failed to execute command!",
+      "module_disabled": "❌ The {module} module is disabled on this server!",
+      "role_hierarchy": "❌ You cannot target this user because their role is higher than or equal to yours!",
+      "bot_role_hierarchy": "❌ I cannot target this user because their role is higher than or equal to mine!"
     },
     "success": "✅ Success!",
     "loading": "⏳ Processing...",
@@ -134,7 +137,41 @@
       "progressive_enabled": "✅ Enabled ({violations} violations → {action}{duration})",
       "progressive_timeout_duration": " for {minutes}m",
       "progressive_disabled": "❌ Disabled",
-      "status_footer": "Use /automod <type> to configure each module"
+      "exempt_roles": "🛡️ Exempt Roles",
+      "exempt_channels": "🛡️ Exempt Channels",
+      "exempt_id_required": "❌ You must provide an ID when adding or removing exemptions.",
+      "exempt_already_added": "❌ This {type} is already exempt from auto-moderation.",
+      "exempt_added": "✅ Added {type} exemption: <#{id}>",
+      "exempt_removed": "✅ Removed {type} exemption: <#{id}>",
+      "exempt_not_found": "❌ This {type} is not in the exemption list.",
+      "exempt_none": "There are no exempt {type} configured.",
+      "exempt_list_title": "Exempt {type}",
+      "exempt_cleared": "✅ Cleared all {type} exemptions.",
+      "status_footer": "Use /automod <type> to configure each module",
+      "filter_add_missing": "Please provide name, pattern, and filter_action to add a custom filter.",
+      "filter_invalid_regex": "Invalid regex pattern. Please provide a valid regular expression.",
+      "filter_exists": "A filter with name '{name}' already exists.",
+      "filter_added": "Custom filter '{name}' added successfully!",
+      "filter_add_failed": "Failed to add custom filter.",
+      "filter_name_required": "Please provide a filter name.",
+      "filter_removed": "Custom filter '{name}' removed successfully!",
+      "filter_remove_failed": "Failed to remove custom filter.",
+      "filter_none": "No custom filters configured.",
+      "filter_list_title": "Custom Regex Filters",
+      "filter_enabled": "Custom filter '{name}' enabled!",
+      "filter_disabled": "Custom filter '{name}' disabled!",
+      "filter_update_failed": "Failed to update custom filter.",
+      "phishing_detection": "🎣 Phishing Detection",
+      "phishing_enabled": "✅ Enabled (Action: {action})",
+      "phishing_disabled": "❌ Disabled",
+      "account_age_check": "📅 Account Age Check",
+      "account_age_enabled": "✅ Enabled (Min: {days} days, Action: {action})",
+      "account_age_disabled": "❌ Disabled",
+      "alt_detection": "🔍 Alt Detection",
+      "alt_detection_enabled": "✅ Enabled (Sensitivity: {sensitivity}, Action: {action})",
+      "alt_detection_disabled": "❌ Disabled",
+      "lockdown_enabled": "🔒 Server lockdown activated successfully!",
+      "lockdown_disabled": "🔓 Server lockdown deactivated successfully!"
     },
     "avatar": {
       "name": "avatar",
@@ -970,6 +1007,75 @@
       "description": "Submit an appeal for a moderation action",
       "success": "✅ Appeal submitted successfully for {type}. A moderator will review it soon.",
       "error": "❌ Failed to submit appeal. Please try again later."
+    },
+    "pause": {
+      "success": "⏸️ Paused playback",
+      "already_paused": "❌ Playback is already paused!",
+      "no_player": "❌ No active player!",
+      "failed": "❌ Failed to pause playback"
+    },
+    "resume": {
+      "success": "▶️ Resumed playback",
+      "not_paused": "❌ Playback is not paused!",
+      "no_player": "❌ No active player!",
+      "failed": "❌ Failed to resume playback"
+    },
+    "skip": {
+      "success": "⏭️ Skipped **{title}**",
+      "no_player": "❌ No active player!",
+      "vote_added": "🗳️ Skip vote added! ({current}/{required})"
+    },
+    "stop": {
+      "success": "⏹️ Stopped playback and cleared the queue",
+      "no_player": "❌ No active player!"
+    },
+    "queue": {
+      "title": "📋 Queue for {guild}",
+      "empty": "❌ The queue is empty!",
+      "now_playing": "**Now Playing:**",
+      "up_next": "**Up Next:**",
+      "requested_by": "Requested by",
+      "duration": "Duration",
+      "footer": "{count} tracks | {duration} total | Page {page}/{total}",
+      "invalid_page": "❌ Invalid page! There are only **{total}** pages",
+      "no_player": "❌ No active player!"
+    },
+    "nowplaying": {
+      "title": "🎵 Now Playing",
+      "requested_by": "Requested By",
+      "duration": "Duration",
+      "volume": "Volume",
+      "artist": "Artist",
+      "loop_mode": "Loop Mode",
+      "loop_song": "🔂 Song",
+      "loop_queue": "🔁 Queue",
+      "loop_off": "▶️ Off",
+      "up_next": "Up Next",
+      "no_player": "❌ No active player!"
+    },
+    "volume": {
+      "current": "🔊 Current volume: **{volume}%**",
+      "success": "🔊 Volume set to **{volume}%**",
+      "no_player": "❌ No active player!"
+    },
+    "loop": {
+      "success": "{emoji} Loop mode set to **{mode}**",
+      "mode_off": "Off",
+      "mode_track": "Track",
+      "mode_song": "Song",
+      "mode_queue": "Queue",
+      "no_player": "❌ No active player!"
+    },
+    "shuffle": {
+      "success": "🔀 Shuffled **{count}** tracks",
+      "not_enough_tracks": "❌ Not enough tracks in queue to shuffle!",
+      "no_player": "❌ No active player!"
+    },
+    "remove": {
+      "success": "➖ Removed **{title}** from position **#{position}**",
+      "invalid_position": "❌ Invalid position! Queue only has **{max}** tracks",
+      "no_player": "❌ No active player!",
+      "failed": "❌ Failed to remove track"
     }
   },
   "dashboard": {
@@ -1040,6 +1146,155 @@
       "automod": "Automod",
       "preview": "Preview Backup",
       "no_backups": "No backups found"
+    },
+    "xpboost": {
+      "role_required": "You must specify a role when type is 'role'.",
+      "channel_required": "You must specify a channel when type is 'channel'.",
+      "already_exists": "An XP booster for this {type} already exists.",
+      "added": "Added XP booster for {target} with {multiplier}x multiplier!",
+      "add_failed": "Failed to add XP booster.",
+      "removed": "Removed XP booster for {target}.",
+      "remove_failed": "Failed to remove XP booster.",
+      "no_boosters": "No XP boosters configured for this server.",
+      "list_title": "XP Boosters",
+      "list_description": "Active XP multiplier boosters in this server:",
+      "role_boosters": "Role Boosters",
+      "channel_boosters": "Channel Boosters",
+      "footer": "{count} active booster(s)"
+    },
+    "levelcard": {
+      "invalid_color": "Invalid hex color for {color}. Use format: #RRGGBB (e.g., #5865F2)",
+      "colors_updated": "Card colors updated! Background: {background}, Accent: {accent}",
+      "unchanged": "unchanged",
+      "invalid_image_url": "Invalid image URL. Must be a direct link to an image (jpg, jpeg, png, gif, webp)",
+      "image_updated": "Card background image updated!",
+      "update_failed": "Failed to update card settings.",
+      "reset": "Card settings reset to default!",
+      "reset_failed": "Failed to reset card settings.",
+      "preview_title": "Your Rank Card Settings",
+      "preview_description": "Current card appearance settings:",
+      "background_color": "Background Color",
+      "accent_color": "Accent Color",
+      "background_image": "Background Image",
+      "none": "None"
+    },
+    "play": {
+      "disabled": "❌ Music is disabled in this server!",
+      "searching": "🔍 Searching for **{query}**...",
+      "no_results": "❌ No results found for **{query}**!",
+      "added_to_queue": "➕ Added **{title}** to the queue at position **#{position}**",
+      "now_playing": "▶️ Now playing **{title}**",
+      "playlist_added": "📋 Added **{count}** songs from playlist to the queue",
+      "track_too_long": "❌ Track is too long! Maximum duration is **{max}** minutes",
+      "queue_full": "❌ Queue is full! Maximum size is **{max}** tracks",
+      "error": "❌ An error occurred while trying to play that track",
+      "search": {
+        "title": "🔍 Search Results",
+        "description": "Search results for: **{query}**\n\nClick a numbered button below to select a track.",
+        "footer": "Selection expires in 30 seconds",
+        "prompt": "🔍 **Select a song to play:**\n\n{results}\n\nYou have 30 seconds to choose.",
+        "cancel": "Cancel",
+        "cancelled": "❌ Song selection cancelled.",
+        "timeout": "⏱️ Song selection timed out.",
+        "loading": "⏳ Loading **{title}**..."
+      }
+    },
+    "pause": {
+      "success": "⏸️ Paused playback",
+      "already_paused": "❌ Playback is already paused!",
+      "failed": "❌ Failed to pause playback"
+    },
+    "resume": {
+      "success": "▶️ Resumed playback",
+      "not_paused": "❌ Playback is not paused!",
+      "failed": "❌ Failed to resume playback"
+    },
+    "skip": {
+      "success": "⏭️ Skipped **{title}**",
+      "vote_added": "🗳️ Skip vote added! ({current}/{required})"
+    },
+    "stop": {
+      "success": "⏹️ Stopped playback and cleared the queue"
+    },
+    "queue": {
+      "title": "📋 Queue for {guild}",
+      "empty": "❌ The queue is empty!",
+      "now_playing": "**Now Playing:**",
+      "up_next": "**Up Next:**",
+      "requested_by": "Requested by",
+      "duration": "Duration",
+      "footer": "{count} tracks | {duration} total | Page {page}/{total} | {loop} {volume}",
+      "invalid_page": "❌ Invalid page! There are only **{total}** pages"
+    },
+    "nowplaying": {
+      "title": "🎵 Now Playing",
+      "requested_by": "Requested By",
+      "duration": "Duration",
+      "volume": "Volume",
+      "artist": "Artist",
+      "loop_mode": "Loop Mode",
+      "loop_song": "🔂 Song",
+      "loop_queue": "🔁 Queue",
+      "loop_off": "▶️ Off",
+      "up_next": "Up Next"
+    },
+    "volume": {
+      "current": "🔊 Current volume: **{volume}%**",
+      "success": "{emoji} Volume set to **{volume}%**"
+    },
+    "loop": {
+      "success": "{emoji} Loop mode set to **{mode}**",
+      "mode_off": "Off",
+      "mode_song": "Song",
+      "mode_queue": "Queue"
+    },
+    "shuffle": {
+      "success": "🔀 Shuffled **{count}** tracks",
+      "not_enough_tracks": "❌ Not enough tracks in queue to shuffle!"
+    },
+    "remove": {
+      "success": "➖ Removed **{title}** from position **#{position}**",
+      "invalid_position": "❌ Invalid position! Queue only has **{max}** tracks",
+      "failed": "❌ Failed to remove track"
+    },
+    "commandrestrict": {
+      "enabled": "✅ Command restrictions have been enabled",
+      "disabled": "❌ Command restrictions have been disabled",
+      "blocked": "❌ You cannot use commands in this channel",
+      "channel": {
+        "added": "✅ Added {channel} to the blacklist",
+        "removed": "✅ Removed {channel} from the blacklist",
+        "already_blacklisted": "❌ {channel} is already blacklisted",
+        "not_blacklisted": "❌ {channel} is not blacklisted",
+        "no_channels": "No channels are currently blacklisted",
+        "list_title": "🚫 Blacklisted Channels"
+      },
+      "role": {
+        "added": "✅ Added {role} as an exception role",
+        "removed": "✅ Removed {role} from exception roles",
+        "already_exception": "❌ {role} is already an exception role",
+        "not_exception": "❌ {role} is not an exception role",
+        "no_roles": "No exception roles are configured",
+        "list_title": "✨ Exception Roles"
+      },
+      "permission": {
+        "added": "✅ Added {permission} as an exception permission",
+        "removed": "✅ Removed {permission} from exception permissions",
+        "already_exception": "❌ {permission} is already an exception permission",
+        "not_exception": "❌ {permission} is not an exception permission",
+        "no_permissions": "No exception permissions are configured",
+        "list_title": "🔑 Exception Permissions"
+      },
+      "status": {
+        "title": "⚙️ Command Restriction Status",
+        "system": "System",
+        "enabled": "✅ Enabled",
+        "disabled": "❌ Disabled",
+        "blacklisted_channels": "🚫 Blacklisted Channels",
+        "exception_roles": "✨ Exception Roles",
+        "exception_permissions": "🔑 Exception Permissions",
+        "none": "None"
+      }
     }
   },
   "common": {
@@ -1067,12 +1322,34 @@
     "automod": {
       "violations": {
         "spam": "Please do not spam messages.",
+        "spam_similarity": "Please do not send similar messages repeatedly.",
         "links": "Links are not allowed in this server.",
         "caps": "Please do not use excessive caps.",
         "mentions": "Please do not mention too many users at once.",
         "profanity": "Please keep the chat family-friendly.",
-        "invites": "Discord invites are not allowed in this server."
+        "invites": "Discord invites are not allowed in this server.",
+        "phishing:known_phishing": "This message contains a known phishing link.",
+        "phishing:suspicious_pattern": "This message contains a suspicious link.",
+        "phishing:homoglyph_attack": "This message contains a suspicious look-alike domain.",
+        "phishing:pattern": "This message contains phishing-related content.",
+        "account_too_new": "Your account does not meet the minimum age requirement.",
+        "suspected_alt": "Your account has been flagged as suspicious."
       }
+    },
+    "music": {
+      "not_in_voice": "❌ You must be in a voice channel!",
+      "different_voice": "❌ You must be in the same voice channel as the bot!",
+      "nothing_playing": "❌ Nothing is currently playing!",
+      "queue_empty": "❌ The queue is empty!",
+      "invalid_volume": "❌ Volume must be between 0 and 100!",
+      "dj_only": "❌ Only users with the DJ role can use this command!",
+      "disabled": "❌ Music is disabled in this server!"
+    },
+    "voteskip": {
+      "disabled": "❌ Vote skip is disabled in this server!",
+      "voted": "✅ Vote registered! {votes}/{required} votes needed to skip",
+      "skipped": "⏭️ Track skipped! ({votes}/{required} votes)",
+      "error": "❌ Failed to register vote skip!"
     }
   }
 }

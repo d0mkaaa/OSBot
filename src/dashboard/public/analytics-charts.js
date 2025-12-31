@@ -6,6 +6,7 @@ class AnalyticsCharts {
 
   async init() {
     this.setupEventListeners();
+    await this.loadStatCards();
     await this.loadAllCharts();
   }
 
@@ -23,14 +24,14 @@ class AnalyticsCharts {
     this.loadAllCharts();
 
     document.querySelectorAll('[data-time-range]').forEach(btn => {
-      btn.classList.remove('bg-blue-600', 'text-white');
-      btn.classList.add('bg-gray-200', 'text-gray-700');
+      btn.classList.remove('bg-indigo-600', 'text-white');
+      btn.classList.add('bg-zinc-700', 'text-zinc-300');
     });
 
     const activeBtn = document.querySelector(`[data-time-range="${range}"]`);
     if (activeBtn) {
-      activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
-      activeBtn.classList.add('bg-blue-600', 'text-white');
+      activeBtn.classList.remove('bg-zinc-700', 'text-zinc-300');
+      activeBtn.classList.add('bg-indigo-600', 'text-white');
     }
   }
 
@@ -47,6 +48,36 @@ class AnalyticsCharts {
       from: now - seconds,
       to: now
     };
+  }
+
+  async loadStatCards() {
+    try {
+      const stats = window.guildData?.stats;
+      if (!stats) return;
+
+      const statCards = document.querySelectorAll('#analytics-stats-container .text-3xl');
+      if (statCards.length >= 4) {
+        const totalMessages = stats.analytics?.totalMessages;
+        const activeMembers = stats.analytics?.activeMembers || stats.members?.total;
+        const commandsUsed = stats.analytics?.commandsUsed;
+        const modActions = stats.moderation?.total;
+
+        if (totalMessages !== undefined && totalMessages !== null) {
+          statCards[0].textContent = totalMessages.toLocaleString();
+        }
+        if (activeMembers !== undefined && activeMembers !== null) {
+          statCards[1].textContent = activeMembers.toLocaleString();
+        }
+        if (commandsUsed !== undefined && commandsUsed !== null) {
+          statCards[2].textContent = commandsUsed.toLocaleString();
+        }
+        if (modActions !== undefined && modActions !== null) {
+          statCards[3].textContent = modActions.toLocaleString();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load stat cards:', error);
+    }
   }
 
   async loadAllCharts() {
@@ -138,7 +169,7 @@ class AnalyticsCharts {
       const result = await response.json();
 
       if (result.success) {
-        this.renderTopList('top-users-list', result.data, 'messageCount');
+        this.renderTopUsersList('top-users-list', result.data);
       }
     } catch (error) {
       console.error('Failed to load top users:', error);
@@ -155,7 +186,7 @@ class AnalyticsCharts {
       const result = await response.json();
 
       if (result.success) {
-        this.renderTopList('top-channels-list', result.data, 'messageCount', 'channelId');
+        this.renderTopChannelsList('top-channels-list', result.data);
       }
     } catch (error) {
       console.error('Failed to load top channels:', error);
@@ -168,6 +199,19 @@ class AnalyticsCharts {
 
     if (this.charts[canvasId]) {
       this.charts[canvasId].destroy();
+    }
+
+    if (!data || data.length === 0) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#71717a';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No analytics data available yet', canvas.width / 2, canvas.height / 2 - 10);
+      ctx.fillStyle = '#52525b';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Data will appear here once tracking begins', canvas.width / 2, canvas.height / 2 + 10);
+      return;
     }
 
     const labels = data.map(d => new Date(d.time_bucket * 1000).toLocaleDateString());
@@ -239,6 +283,19 @@ class AnalyticsCharts {
 
     if (this.charts[canvasId]) {
       this.charts[canvasId].destroy();
+    }
+
+    if (!data || !data.joins || data.joins.length === 0) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#71717a';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('No member analytics data available yet', canvas.width / 2, canvas.height / 2 - 10);
+      ctx.fillStyle = '#52525b';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Data will appear here once tracking begins', canvas.width / 2, canvas.height / 2 + 10);
+      return;
     }
 
     const labels = data.joins.map(d => new Date(d.time_bucket * 1000).toLocaleDateString());
@@ -313,26 +370,79 @@ class AnalyticsCharts {
     });
   }
 
-  renderTopList(containerId, data, countKey, idKey = 'userId') {
+  renderTopUsersList(containerId, data) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
     container.innerHTML = '';
 
     if (data.length === 0) {
-      container.innerHTML = '<div class="text-gray-500 text-center py-4">No data available</div>';
+      container.innerHTML = '<div class="text-center py-8 text-zinc-500"><p class="text-sm">No data available</p></div>';
       return;
     }
 
     data.forEach((item, index) => {
       const div = document.createElement('div');
-      div.className = 'flex items-center justify-between p-3 border-b hover:bg-gray-50';
+      div.className = 'flex items-center justify-between p-3 bg-zinc-700/30 rounded-lg mb-2 hover:bg-zinc-700/50 transition-colors cursor-pointer';
+      div.onclick = () => {
+        navigator.clipboard.writeText(item.userId);
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toast.textContent = 'User ID copied!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      };
+
       div.innerHTML = `
         <div class="flex items-center gap-3">
-          <span class="text-lg font-bold text-gray-400">#${index + 1}</span>
-          <span class="font-medium">${item[idKey]}</span>
+          <span class="text-lg font-bold text-zinc-400">#${index + 1}</span>
+          ${item.avatar ? `<img src="${item.avatar}" alt="${item.username}" class="w-8 h-8 rounded-full">` : '<div class="w-8 h-8 rounded-full bg-zinc-600 flex items-center justify-center text-xs text-zinc-300">?</div>'}
+          <div class="flex flex-col">
+            <span class="font-medium text-white">${item.username}</span>
+            <span class="text-xs text-zinc-500">${item.userId}</span>
+          </div>
         </div>
-        <span class="text-sm text-gray-600">${item[countKey]} messages</span>
+        <span class="text-sm text-zinc-400">${item.messageCount} messages</span>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  renderTopChannelsList(containerId, data) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (data.length === 0) {
+      container.innerHTML = '<div class="text-center py-8 text-zinc-500"><p class="text-sm">No data available</p></div>';
+      return;
+    }
+
+    data.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between p-3 bg-zinc-700/30 rounded-lg mb-2 hover:bg-zinc-700/50 transition-colors cursor-pointer';
+      div.onclick = () => {
+        navigator.clipboard.writeText(item.channelId);
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toast.textContent = 'Channel ID copied!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      };
+
+      div.innerHTML = `
+        <div class="flex items-center gap-3">
+          <span class="text-lg font-bold text-zinc-400">#${index + 1}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-zinc-400">#</span>
+            <div class="flex flex-col">
+              <span class="font-medium text-white">${item.channelName}</span>
+              <span class="text-xs text-zinc-500">${item.channelId}</span>
+            </div>
+          </div>
+        </div>
+        <span class="text-sm text-zinc-400">${item.messageCount} messages</span>
       `;
       container.appendChild(div);
     });

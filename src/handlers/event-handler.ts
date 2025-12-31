@@ -1,6 +1,6 @@
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { BotClient, BotEvent } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -15,7 +15,8 @@ export async function loadEvents(client: BotClient): Promise<void> {
 
   for (const file of eventFiles) {
     const filePath = join(eventsPath, file);
-    const eventModule = await import(filePath);
+    const fileURL = pathToFileURL(filePath).href;
+    const eventModule = await import(fileURL);
     const event: BotEvent = eventModule.default;
 
     if (event.once) {

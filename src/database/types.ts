@@ -23,6 +23,9 @@ export interface Guild {
   antiraid_join_threshold: number;
   antiraid_join_window: number;
   antiraid_action: string | null;
+  raid_lockdown_active: number;
+  raid_lockdown_started_at: number | null;
+  raid_lockdown_verification_channel_id: string | null;
   warning_threshold_enabled: number;
   warning_threshold_count: number;
   warning_threshold_action: string | null;
@@ -262,4 +265,48 @@ export interface MemberInvite {
   inviter_id: string | null;
   invite_code: string | null;
   joined_at: number;
+}
+
+export interface MusicSettings {
+  guild_id: string;
+  dj_role_id: string | null;
+  volume: number;
+  loop_mode: string;
+  auto_leave: number;
+  auto_leave_timeout: number;
+  twentyfour_seven: number;
+  vote_skip_enabled: number;
+  vote_skip_threshold: number;
+  max_queue_size: number;
+  max_track_duration: number;
+  auto_delete_files: number;
+  auto_delete_delay: number;
+  enabled: number;
+}
+
+export interface MusicQueue {
+  guild_id: string;
+  tracks: string;
+  current_track: string | null;
+  volume: number;
+  loop_mode: string;
+  is_playing: number;
+  updated_at: number;
+}
+
+export interface CommandRestriction {
+  guild_id: string;
+  enabled: number;
+  blacklisted_channels: string | null;
+  exception_roles: string | null;
+  exception_permissions: string | null;
+}
+
+export interface AltDetectionScore {
+  id: number;
+  guild_id: string;
+  user_id: string;
+  score: number;
+  flags: string | null;
+  created_at: number;
 }

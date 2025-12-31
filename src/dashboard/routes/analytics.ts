@@ -92,16 +92,40 @@ export function createAnalyticsRoutes(client: any): Router {
           try {
             const data = JSON.parse((metric as any).metadata);
             for (const [userId, count] of Object.entries(data)) {
-              userActivity[userId] = (userActivity[userId] || 0) + (count as number);
+              if (userId === 'time_bucket') continue;
+              const previousCount = userActivity[userId] || 0;
+              userActivity[userId] = previousCount + (count as number);
             }
           } catch (e) {}
         }
       }
 
-      const topUsers = Object.entries(userActivity)
+      const topUsersData = Object.entries(userActivity)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, 10)
-        .map(([userId, count]) => ({ userId, messageCount: count }));
+        .slice(0, 10);
+
+      const topUsers = await Promise.all(
+        topUsersData.map(async ([userId, count]) => {
+          try {
+            const user = await client.users.fetch(userId);
+            return {
+              userId,
+              username: user.username,
+              discriminator: user.discriminator,
+              avatar: user.displayAvatarURL({ size: 64 }),
+              messageCount: count
+            };
+          } catch (error) {
+            return {
+              userId,
+              username: 'Unknown User',
+              discriminator: '0000',
+              avatar: null,
+              messageCount: count
+            };
+          }
+        })
+      );
 
       res.json({ success: true, data: topUsers });
     } catch (error) {
@@ -126,16 +150,34 @@ export function createAnalyticsRoutes(client: any): Router {
           try {
             const data = JSON.parse((metric as any).metadata);
             for (const [channelId, count] of Object.entries(data)) {
+              if (channelId === 'time_bucket') continue;
               channelActivity[channelId] = (channelActivity[channelId] || 0) + (count as number);
             }
           } catch (e) {}
         }
       }
 
-      const topChannels = Object.entries(channelActivity)
+      const guild = await client.guilds.fetch(guildId);
+      const topChannelsData = Object.entries(channelActivity)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, 10)
-        .map(([channelId, count]) => ({ channelId, messageCount: count }));
+        .slice(0, 10);
+
+      const topChannels = topChannelsData.map(([channelId, count]) => {
+        try {
+          const channel = guild.channels.cache.get(channelId);
+          return {
+            channelId,
+            channelName: channel?.name || 'Unknown Channel',
+            messageCount: count
+          };
+        } catch (error) {
+          return {
+            channelId,
+            channelName: 'Unknown Channel',
+            messageCount: count
+          };
+        }
+      });
 
       res.json({ success: true, data: topChannels });
     } catch (error) {

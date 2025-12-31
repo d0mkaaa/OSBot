@@ -23,8 +23,10 @@ export class StarboardManager {
       const message = reaction.message as Message;
       if (!message.guild) return;
 
-      if (added && message.author.id === user.id) {
-        await reaction.users.remove(user.id);
+      if (message.author.id === user.id) {
+        if (added) {
+          await reaction.users.remove(user.id);
+        }
         return;
       }
 

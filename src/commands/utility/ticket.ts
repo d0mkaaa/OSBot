@@ -75,6 +75,16 @@ const command: Command = {
     }
 
     const db = DatabaseManager.getInstance();
+    const guildData = db.getGuild(interaction.guildId) as any;
+
+    if (!guildData?.tickets_enabled) {
+      await interaction.reply({
+        content: t('common.errors.module_disabled', locale, { module: 'tickets' }),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
+
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'setup') {

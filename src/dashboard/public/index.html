@@ -4,9 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bot Dashboard</title>
+  <link rel="stylesheet" href="/dashboard.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+  <script src="/utils.js"></script>
+  <script src="/api-client.js"></script>
   <script src="/embed-builder.js"></script>
   <script src="/console.js"></script>
   <script src="/chat-viewer.js"></script>
@@ -15,6 +18,10 @@
   <script src="/analytics-charts.js"></script>
   <script src="/bulk-actions.js"></script>
   <script src="/backup-manager.js"></script>
+  <script src="/custom-filters.js"></script>
+  <script src="/xp-boosters.js"></script>
+  <script src="/music-player.js"></script>
+  <script src="/security-manager.js"></script>
   <style>
     .scrollbar-thin::-webkit-scrollbar {
       width: 8px;
@@ -139,84 +146,6 @@
   <div id="app"></div>
 
   <script>
-    const API = {
-      async checkAuth() {
-        const res = await fetch('/auth/user');
-        return res.json();
-      },
-      async fetchLocales() {
-        const res = await fetch('/api/locales');
-        return res.json();
-      },
-      async fetchGuildConfig(guildId) {
-        const res = await fetch(`/api/guilds/${guildId}/config`);
-        return res.json();
-      },
-      async updateGuildConfig(guildId, config) {
-        const res = await fetch(`/api/guilds/${guildId}/config`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(config)
-        });
-        return res.json();
-      },
-      async fetchGuildStats(guildId) {
-        const res = await fetch(`/api/guilds/${guildId}/stats`);
-        return res.json();
-      },
-      async fetchTickets(guildId) {
-        const res = await fetch(`/api/guilds/${guildId}/tickets`);
-        return res.json();
-      },
-      async fetchWarnings(guildId) {
-        const res = await fetch(`/api/guilds/${guildId}/warnings`);
-        return res.json();
-      },
-      async deleteWarning(guildId, warningId) {
-        const res = await fetch(`/api/guilds/${guildId}/warnings/${warningId}`, { method: 'DELETE' });
-        return res.json();
-      },
-      async fetchLogs(guildId) {
-        const res = await fetch(`/api/guilds/${guildId}/logs?limit=100`);
-        return res.json();
-      },
-      async fetchAutomod(guildId) {
-        const res = await fetch(`/api/guilds/${guildId}/automod`);
-        return res.json();
-      },
-      async updateAutomod(guildId, config) {
-        const res = await fetch(`/api/guilds/${guildId}/automod`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(config)
-        });
-        return res.json();
-      },
-      async fetchRules(guildId) {
-        const res = await fetch(`/api/guilds/${guildId}/rules`);
-        return res.json();
-      },
-      async addRule(guildId, title, description) {
-        const res = await fetch(`/api/guilds/${guildId}/rules`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, description })
-        });
-        return res.json();
-      },
-      async deleteRule(guildId, ruleId) {
-        const res = await fetch(`/api/guilds/${guildId}/rules/${ruleId}`, { method: 'DELETE' });
-        return res.json();
-      },
-      async fetchUser(guildId, userId) {
-        const res = await fetch(`/api/guilds/${guildId}/users/${userId}`);
-        return res.json();
-      },
-      async fetchTicketTranscript(guildId, ticketId) {
-        const res = await fetch(`/api/guilds/${guildId}/tickets/${ticketId}/transcript`);
-        return res.json();
-      }
-    };
 
     const userCache = {};
 
@@ -226,7 +155,7 @@
       }
 
       try {
-        const result = await API.fetchUser(currentGuild, userId);
+        const result = await API.fetchUserInfo(currentGuild, userId);
         if (result.success) {
           const user = result.data;
           const displayName = user.nickname || user.username;
@@ -358,70 +287,142 @@
     function renderDashboard(user, isOwner, botClientId) {
       const guilds = user.guilds || [];
       const adminGuilds = guilds.filter(g => (g.permissions & 0x8) === 0x8);
+      const botGuilds = adminGuilds.filter(g => g.botInGuild);
+      const nonBotGuilds = adminGuilds.filter(g => !g.botInGuild);
 
       return `
         <div class="min-h-screen">
           <nav class="bg-zinc-800 border-b border-zinc-700 px-4 py-3">
             <div class="container mx-auto flex justify-between items-center">
-              <h1 class="text-2xl font-bold">Bot Dashboard</h1>
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-xl">🤖</div>
+                <h1 class="text-2xl font-bold text-white">OSBot Dashboard</h1>
+              </div>
               <div class="flex items-center gap-4">
-                <span class="text-zinc-400">${user.username}${user.discriminator !== '0' ? '#' + user.discriminator : ''}</span>
-                ${isOwner === false ? '<span class="text-yellow-400 text-xs px-2 py-1 bg-yellow-900/20 rounded">Limited Access</span>' : ''}
-                <a href="/auth/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition">Logout</a>
+                <button onclick="showAccountSettings()" class="text-zinc-400 hover:text-white transition flex items-center gap-2">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                  <span class="hidden md:inline">Settings</span>
+                </button>
+                <div class="flex items-center gap-3 bg-zinc-700/50 rounded-lg px-4 py-2">
+                  <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center font-bold text-sm">
+                    ${user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <span class="text-white font-medium hidden md:inline">${user.username}${user.discriminator !== '0' ? '#' + user.discriminator : ''}</span>
+                  ${isOwner === false ? '<span class="text-yellow-400 text-xs px-2 py-1 bg-yellow-900/20 rounded">Limited</span>' : ''}
+                </div>
+                <a href="/auth/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm transition">Logout</a>
               </div>
             </div>
           </nav>
 
-          <div class="container mx-auto p-6">
+          <div class="container mx-auto px-6 py-8">
             ${isOwner === false ? `
-              <div class="bg-yellow-900/20 border border-yellow-600/30 p-4 rounded-lg mb-6">
-                <p class="text-yellow-400">⚠️ Dashboard access is restricted to bot owners. Contact the bot administrator for access.</p>
+              <div class="bg-yellow-900/20 border border-yellow-600/30 p-4 rounded-lg mb-6 flex items-start gap-3">
+                <svg class="w-6 h-6 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <div>
+                  <p class="text-yellow-400 font-semibold">Limited Access</p>
+                  <p class="text-yellow-200/80 text-sm mt-1">Dashboard access is restricted to bot owners. Contact the bot administrator for full access.</p>
+                </div>
               </div>
             ` : ''}
 
-            <div class="mb-6 flex gap-4">
-              <button onclick="showDashboardSecurity()" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-3 rounded-lg text-sm font-semibold transition flex items-center gap-2">
-                <span>🔐</span>
-                <span>Dashboard Security Logs</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <button onclick="showDashboardSecurity()" class="group bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 p-6 rounded-lg transition text-left">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="w-12 h-12 bg-indigo-600/20 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                  </div>
+                  <span class="text-indigo-400 text-xs font-semibold px-2 py-1 bg-indigo-600/20 rounded">Security</span>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Security Logs</h3>
+                <p class="text-zinc-400 text-sm">Track dashboard access and audit all security events</p>
               </button>
-              <button onclick="showConsole()" class="bg-zinc-700 hover:bg-zinc-600 px-6 py-3 rounded-lg text-sm font-semibold transition flex items-center gap-2">
-                <span>💻</span>
-                <span>Console Logs</span>
+
+              <button onclick="showConsole()" class="group bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 p-6 rounded-lg transition text-left">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="w-12 h-12 bg-green-600/20 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                  </div>
+                  <span class="text-green-400 text-xs font-semibold px-2 py-1 bg-green-600/20 rounded">Live</span>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">Console Logs</h3>
+                <p class="text-zinc-400 text-sm">Monitor real-time bot activity and system events</p>
               </button>
+
+              <div class="bg-zinc-800 border border-zinc-700 p-6 rounded-lg">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="w-12 h-12 bg-purple-600/20 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                  </div>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">${botGuilds.length} Active Servers</h3>
+                <p class="text-zinc-400 text-sm">Managing ${botGuilds.length} server${botGuilds.length !== 1 ? 's' : ''} with administrator access</p>
+              </div>
             </div>
 
-            <h2 class="text-2xl font-bold mb-6">Your Servers</h2>
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-2xl font-bold text-white">Your Servers</h2>
+                <p class="text-zinc-400 text-sm mt-1">Select a server to manage its settings and configuration</p>
+              </div>
+            </div>
 
             ${adminGuilds.length === 0 ? `
-              <div class="bg-zinc-800 p-8 rounded-lg text-center">
-                <p class="text-zinc-400">You don't have administrator permissions in any servers.</p>
+              <div class="bg-zinc-800/50 border border-zinc-700 p-12 rounded-xl text-center">
+                <svg class="w-20 h-20 mx-auto mb-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                <p class="text-zinc-400 text-lg font-medium">No servers found</p>
+                <p class="text-zinc-500 text-sm mt-2">You don't have administrator permissions in any servers.</p>
               </div>
             ` : `
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                ${adminGuilds.map(guild => {
-                  if (guild.botInGuild) {
-                    return `
-                      <div class="bg-zinc-800 p-6 rounded-lg hover:bg-zinc-750 transition cursor-pointer" onclick="viewGuild('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')">
-                        <h3 class="text-xl font-bold mb-2">${guild.name}</h3>
-                        <p class="text-zinc-400 text-sm mb-4">ID: ${guild.id}</p>
-                        <button class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm w-full transition">
-                          Manage Server
-                        </button>
+              <div id="servers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${botGuilds.map(guild => `
+                  <div class="server-card group bg-zinc-800 hover:bg-zinc-750 border border-zinc-700 p-6 rounded-lg transition cursor-pointer" onclick="viewGuild('${guild.id}', '${guild.name.replace(/'/g, "\\'")}')">
+                    <div class="flex items-start justify-between mb-4">
+                      <div class="w-14 h-14 bg-indigo-600 rounded-lg flex items-center justify-center text-2xl font-bold">
+                        ${guild.name.charAt(0)}
                       </div>
-                    `;
-                  } else {
-                    const inviteUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + botClientId + '&permissions=8&scope=bot%20applications.commands&guild_id=' + guild.id;
-                    return `
-                      <div class="bg-zinc-800 p-6 rounded-lg border-2 border-zinc-700">
-                        <h3 class="text-xl font-bold mb-2">${guild.name}</h3>
-                        <p class="text-zinc-400 text-sm mb-2">ID: ${guild.id}</p>
-                        <p class="text-yellow-400 text-sm mb-4">⚠️ Bot not in this server</p>
-                        <a href="${inviteUrl}" target="_blank" class="block text-center bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm w-full transition">
-                          Add Bot to Server
-                        </a>
+                      <span class="text-green-400 text-xs font-semibold px-2 py-1 bg-green-600/20 rounded flex items-center gap-1">
+                        <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+                        Active
+                      </span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1 truncate">${guild.name}</h3>
+                    <p class="text-zinc-500 text-xs font-mono mb-4">ID: ${guild.id}</p>
+                    <button class="w-full bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium transition">
+                      Manage Server
+                    </button>
+                  </div>
+                `).join('')}
+                ${nonBotGuilds.map(guild => {
+                  const inviteUrl = 'https://discord.com/api/oauth2/authorize?client_id=' + botClientId + '&permissions=8&scope=bot%20applications.commands&guild_id=' + guild.id;
+                  return `
+                    <div class="server-card bg-zinc-800 border-2 border-dashed border-zinc-700 p-6 rounded-lg">
+                      <div class="flex items-start justify-between mb-4">
+                        <div class="w-14 h-14 bg-zinc-700 rounded-lg flex items-center justify-center text-2xl opacity-50 font-bold">
+                          ${guild.name.charAt(0)}
+                        </div>
+                        <span class="text-yellow-400 text-xs font-semibold px-2 py-1 bg-yellow-600/20 rounded">Bot Missing</span>
                       </div>
-                    `;
-                  }
+                      <h3 class="text-xl font-bold text-zinc-300 mb-1 truncate">${guild.name}</h3>
+                      <p class="text-zinc-600 text-xs font-mono mb-4">ID: ${guild.id}</p>
+                      <a href="${inviteUrl}" target="_blank" class="block text-center bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-sm font-medium transition">
+                        Add Bot to Server
+                      </a>
+                    </div>
+                  `;
                 }).join('')}
               </div>
             `}
@@ -519,6 +520,40 @@
       }, 100);
     }
 
+    async function showAccountSettings() {
+      const auth = await API.checkAuth();
+      if (!auth.authenticated) {
+        document.getElementById('app').innerHTML = renderLogin();
+        return;
+      }
+
+      document.getElementById('app').innerHTML = `
+        <div class="min-h-screen">
+          <nav class="bg-zinc-800 border-b border-zinc-700 px-4 py-3">
+            <div class="container mx-auto flex justify-between items-center">
+              <h1 class="text-2xl font-bold">Account Settings</h1>
+              <div class="flex items-center gap-4">
+                <button onclick="showMainDashboard()" class="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-sm transition">
+                  ← Back to Dashboard
+                </button>
+                <span class="text-zinc-400">${auth.user.username}${auth.user.discriminator !== '0' ? '#' + auth.user.discriminator : ''}</span>
+                <a href="/auth/logout" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm transition">Logout</a>
+              </div>
+            </div>
+          </nav>
+
+          <div class="container mx-auto p-6">
+            ${renderAccountSettingsPage()}
+          </div>
+        </div>
+      `;
+
+      setTimeout(() => {
+        loadUserSettings();
+        loadUserSessions();
+      }, 100);
+    }
+
     async function viewGuild(guildId, guildName) {
       if (typeof cleanupConsoleWebSocket !== 'undefined') {
         cleanupConsoleWebSocket();
@@ -548,6 +583,10 @@
     }
 
     async function switchTab(tab) {
+      if (typeof cleanupMusicPlayer === 'function') {
+        cleanupMusicPlayer();
+      }
+
       currentTab = tab;
       if (tab === 'tickets') {
         const tickets = await API.fetchTickets(currentGuild);
@@ -572,25 +611,54 @@
         guildData.rules = rules.data || [];
       }
       renderGuildDashboard();
+
+      if (tab === 'automod') {
+        window.customFiltersManager = new CustomFiltersManager(currentGuild);
+        await window.customFiltersManager.loadFilters();
+        const container = document.getElementById('custom-filters-container');
+        if (container) {
+          container.innerHTML = window.customFiltersManager.renderFiltersUI();
+        }
+      } else if (tab === 'xpboosters') {
+        window.xpBoostersManager = new XPBoostersManager(currentGuild);
+        await window.xpBoostersManager.loadBoosters();
+        const container = document.getElementById('xp-boosters-container');
+        if (container) {
+          container.innerHTML = window.xpBoostersManager.renderBoostersUI();
+        }
+      } else if (tab === 'music') {
+        if (typeof initMusicPlayer === 'function') {
+          initMusicPlayer(currentGuild);
+        }
+      }
     }
 
     function renderGuildDashboard() {
-      const tabs = [
-        { id: 'overview', name: 'Overview', icon: '📊' },
-        { id: 'config', name: 'Configuration', icon: '⚙️' },
-        { id: 'tickets', name: 'Tickets', icon: '🎫' },
-        { id: 'warnings', name: 'Warnings', icon: '⚠️' },
-        { id: 'logs', name: 'Audit Logs', icon: '📋' },
-        { id: 'automod', name: 'AutoMod', icon: '🛡️' },
-        { id: 'rules', name: 'Rules', icon: '📜' },
-        { id: 'chat', name: 'Live Chat', icon: '💬' },
-        { id: 'permissions', name: 'Permissions', icon: '🔒' },
-        { id: 'appeals', name: 'Appeals', icon: '📋' },
-        { id: 'analytics', name: 'Analytics', icon: '📈' },
-        { id: 'bulk', name: 'Bulk Actions', icon: '⚡' },
-        { id: 'backups', name: 'Backups', icon: '💾' },
-        { id: 'docs', name: 'Documentation', icon: '📚' }
+      const config = guildData.config;
+      const allTabs = [
+        { id: 'overview', name: 'Overview', icon: '📊', enabled: true },
+        { id: 'config', name: 'Configuration', icon: '⚙️', enabled: true },
+        { id: 'tickets', name: 'Tickets', icon: '🎫', enabled: !!config.tickets_enabled },
+        { id: 'warnings', name: 'Warnings', icon: '⚠️', enabled: !!config.warnings_enabled },
+        { id: 'logs', name: 'Audit Logs', icon: '📋', enabled: !!config.moderation_enabled },
+        { id: 'automod', name: 'AutoMod', icon: '🛡️', enabled: !!config.automod_enabled },
+        { id: 'rules', name: 'Rules', icon: '📜', enabled: !!config.moderation_enabled },
+        { id: 'xpboosters', name: 'XP Boosters', icon: '⚡', enabled: !!config.leveling_enabled },
+        { id: 'music', name: 'Music', icon: '🎵', enabled: !!config.music_enabled },
+        { id: 'chat', name: 'Live Chat', icon: '💬', enabled: true },
+        { id: 'permissions', name: 'Permissions', icon: '🔒', enabled: true },
+        { id: 'appeals', name: 'Appeals', icon: '📋', enabled: !!config.moderation_enabled },
+        { id: 'analytics', name: 'Analytics', icon: '📈', enabled: !!config.analytics_enabled },
+        { id: 'bulk', name: 'Bulk Actions', icon: '⚡', enabled: !!config.moderation_enabled },
+        { id: 'backups', name: 'Backups', icon: '💾', enabled: true }
       ];
+
+      const tabs = allTabs.filter(tab => tab.enabled);
+
+      const currentTabEnabled = allTabs.find(t => t.id === currentTab)?.enabled;
+      if (!currentTabEnabled) {
+        currentTab = 'overview';
+      }
 
       let content = '';
       if (currentTab === 'overview') content = renderOverviewTab();
@@ -600,13 +668,14 @@
       else if (currentTab === 'logs') content = renderLogsTab();
       else if (currentTab === 'automod') content = renderAutomodTab();
       else if (currentTab === 'rules') content = renderRulesTab();
+      else if (currentTab === 'xpboosters') content = renderXPBoostersTab();
+      else if (currentTab === 'music') content = renderMusicTab();
       else if (currentTab === 'chat') content = renderChatTab();
       else if (currentTab === 'permissions') content = renderPermissionsTab();
       else if (currentTab === 'appeals') content = renderAppealsTab();
       else if (currentTab === 'analytics') content = renderAnalyticsTab();
       else if (currentTab === 'bulk') content = renderBulkTab();
       else if (currentTab === 'backups') content = renderBackupsTab();
-      else if (currentTab === 'docs') content = renderDocsTab();
 
       document.getElementById('app').innerHTML = `
         <div class="min-h-screen">
@@ -622,14 +691,15 @@
 
           <div class="border-b border-zinc-700 bg-zinc-800">
             <div class="container mx-auto">
-              <nav class="flex gap-1 overflow-x-auto">
+              <nav class="flex gap-1 overflow-x-auto justify-center">
                 ${tabs.map(tab => `
-                  <button onclick="switchTab('${tab.id}')" class="px-4 py-3 text-sm font-medium transition ${
+                  <button onclick="switchTab('${tab.id}')" class="px-3 py-2 text-xs font-medium transition flex flex-col items-center gap-1 min-w-[80px] ${
                     currentTab === tab.id
                       ? 'text-white border-b-2 border-indigo-500'
                       : 'text-zinc-400 hover:text-white'
                   }">
-                    ${tab.icon} ${tab.name}
+                    <span class="text-xl">${tab.icon}</span>
+                    <span>${tab.name}</span>
                   </button>
                 `).join('')}
               </nav>
@@ -641,101 +711,6 @@
           </div>
         </div>
       `;
-    }
-
-    function renderDocsTab() {
-      setTimeout(() => {
-        loadDocumentation();
-      }, 100);
-
-      return `
-        <div class="max-w-6xl mx-auto">
-          <div class="bg-zinc-800 rounded-lg p-6 mb-6">
-            <h2 class="text-2xl font-bold mb-4">📚 Documentation</h2>
-            <p class="text-zinc-400">Browse the complete documentation for your bot.</p>
-          </div>
-
-          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div class="lg:col-span-1">
-              <div class="bg-zinc-800 rounded-lg p-4 sticky top-4">
-                <h3 class="font-semibold mb-4 text-zinc-300">Documentation</h3>
-                <div id="docs-nav" class="space-y-2">
-                  <div class="text-center text-zinc-500 py-4">Loading...</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="lg:col-span-3">
-              <div class="bg-zinc-800 rounded-lg p-6">
-                <div id="docs-content" class="prose prose-invert max-w-none">
-                  <div class="text-center text-zinc-500 py-8">
-                    Select a documentation page from the menu
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    async function loadDocumentation() {
-      try {
-        const res = await fetch('/api/docs', { credentials: 'include' });
-        const result = await res.json();
-
-        if (result.success) {
-          const navHtml = result.data.map(doc => `
-            <button
-              onclick="loadDoc('${doc.id}')"
-              class="w-full text-left px-4 py-2 rounded hover:bg-zinc-700 transition flex items-center gap-2 doc-nav-item"
-              data-doc-id="${doc.id}"
-            >
-              <span>${doc.icon}</span>
-              <span class="text-sm">${doc.name}</span>
-            </button>
-          `).join('');
-
-          document.getElementById('docs-nav').innerHTML = navHtml;
-
-          if (result.data.length > 0) {
-            loadDoc(result.data[0].id);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load documentation list:', error);
-        document.getElementById('docs-nav').innerHTML = '<div class="text-red-400 text-sm p-2">Failed to load docs</div>';
-      }
-    }
-
-    async function loadDoc(docId) {
-      try {
-        document.querySelectorAll('.doc-nav-item').forEach(btn => {
-          btn.classList.remove('bg-zinc-700', 'text-white');
-          btn.classList.add('text-zinc-400');
-        });
-
-        const activeBtn = document.querySelector(`[data-doc-id="${docId}"]`);
-        if (activeBtn) {
-          activeBtn.classList.add('bg-zinc-700', 'text-white');
-          activeBtn.classList.remove('text-zinc-400');
-        }
-
-        document.getElementById('docs-content').innerHTML = '<div class="text-center text-zinc-500 py-8">Loading...</div>';
-
-        const res = await fetch(`/api/docs/${docId}`, { credentials: 'include' });
-        const result = await res.json();
-
-        if (result.success) {
-          const htmlContent = marked.parse(result.data.content);
-          document.getElementById('docs-content').innerHTML = htmlContent;
-        } else {
-          document.getElementById('docs-content').innerHTML = '<div class="text-red-400">Failed to load documentation</div>';
-        }
-      } catch (error) {
-        console.error('Failed to load doc:', error);
-        document.getElementById('docs-content').innerHTML = '<div class="text-red-400">Failed to load documentation</div>';
-      }
     }
 
     async function viewTicketTranscript(ticketId) {
@@ -881,121 +856,245 @@
       return `${minutes}m`;
     }
 
+    function createStatCard(title, value, iconPath, valueColor = 'text-white') {
+      return `
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-5 hover:border-zinc-600 transition-colors">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-zinc-400 text-sm font-medium">${title}</h3>
+            <svg class="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}" />
+            </svg>
+          </div>
+          <p class="text-3xl font-bold ${valueColor}">${value}</p>
+        </div>
+      `;
+    }
+
+    function createSectionCard(title, iconPath, content) {
+      return `
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+          <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}" />
+            </svg>
+            ${title}
+          </h3>
+          ${content}
+        </div>
+      `;
+    }
+
+    function createActionCard(title, description, actionText, tab, iconPath) {
+      return `
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-5 hover:border-indigo-500/50 transition-all cursor-pointer group" onclick="switchTab('${tab}')">
+          <div class="flex items-start gap-4">
+            <div class="p-2 bg-zinc-700 rounded-lg group-hover:bg-indigo-500/20 transition-colors">
+              <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}" />
+              </svg>
+            </div>
+            <div class="flex-1">
+              <h4 class="text-white font-medium mb-1">${title}</h4>
+              <p class="text-zinc-400 text-sm mb-3">${description}</p>
+              <span class="text-indigo-400 text-sm font-medium group-hover:text-indigo-300 transition-colors">
+                ${actionText} →
+              </span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function createMetricCard(label, value, iconPath, iconColor = 'text-zinc-500', badge = null) {
+      return `
+        <div class="flex items-center justify-between p-4 bg-zinc-700/50 rounded-lg">
+          <div class="flex items-center gap-3">
+            <svg class="w-5 h-5 ${iconColor}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}" />
+            </svg>
+            <span class="text-zinc-300">${label}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-white font-semibold">${value}</span>
+            ${badge ? `<span class="px-2 py-0.5 text-xs rounded-full ${badge.class}">${badge.text}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
     function renderOverviewTab() {
       const stats = guildData.stats;
       return `
-        <div class="max-w-6xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h3 class="text-zinc-400 text-sm mb-2">Total Tickets</h3>
-            <p class="text-3xl font-bold">${stats.tickets.total}</p>
-          </div>
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h3 class="text-zinc-400 text-sm mb-2">Open Tickets</h3>
-            <p class="text-3xl font-bold text-green-400">${stats.tickets.open}</p>
-          </div>
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h3 class="text-zinc-400 text-sm mb-2">Total Warnings</h3>
-            <p class="text-3xl font-bold text-yellow-400">${stats.warnings.total}</p>
-          </div>
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h3 class="text-zinc-400 text-sm mb-2">Mod Actions</h3>
-            <p class="text-3xl font-bold text-red-400">${stats.moderation.total}</p>
-          </div>
-        </div>
-
-        ${stats.health ? `
-        <div class="bg-zinc-800 p-6 rounded-lg mb-8 ${stats.health.status === 'healthy' ? 'border-l-4 border-green-500' : stats.health.status === 'degraded' ? 'border-l-4 border-yellow-500' : 'border-l-4 border-red-500'}">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold">System Health</h2>
-            <span class="px-3 py-1 rounded text-sm font-bold uppercase ${stats.health.status === 'healthy' ? 'bg-green-900/50 text-green-400' : stats.health.status === 'degraded' ? 'bg-yellow-900/50 text-yellow-400' : 'bg-red-900/50 text-red-400'}">
-              ${stats.health.status}
-            </span>
+        <div class="space-y-6">
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <h2 class="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+              <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Server Overview
+            </h2>
+            <p class="text-zinc-300 text-sm">Monitor your server's activity and performance at a glance</p>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div class="bg-zinc-700/50 p-4 rounded">
-              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Uptime</p>
-              <p class="text-lg font-bold">${formatUptime(stats.health.uptime)}</p>
-            </div>
-            <div class="bg-zinc-700/50 p-4 rounded">
-              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Memory</p>
-              <p class="text-lg font-bold">${stats.health.memory.used}MB / ${stats.health.memory.total}MB</p>
-              <div class="w-full bg-zinc-600 rounded-full h-2 mt-2">
-                <div class="h-2 rounded-full transition-all ${stats.health.memory.percentage > 90 ? 'bg-red-500' : stats.health.memory.percentage > 75 ? 'bg-yellow-500' : 'bg-green-500'}"
-                     style="width: ${stats.health.memory.percentage}%"></div>
-              </div>
-              <p class="text-xs text-zinc-400 mt-1">${stats.health.memory.percentage}% used</p>
-            </div>
-            <div class="bg-zinc-700/50 p-4 rounded">
-              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Database</p>
-              <p class="text-lg font-bold">${stats.health.database.connected ? 'Connected' : 'Disconnected'}</p>
-              ${stats.health.database.connected ? `<p class="text-xs text-zinc-400 mt-1">${stats.health.database.responseTime}ms response</p>` : ''}
-            </div>
-            <div class="bg-zinc-700/50 p-4 rounded">
-              <p class="text-xs text-zinc-400 mb-1 uppercase font-semibold">Discord API</p>
-              <p class="text-lg font-bold">${stats.health.discord.connected ? 'Connected' : 'Disconnected'}</p>
-              ${stats.health.discord.connected ? `<p class="text-xs text-zinc-400 mt-1">${stats.health.discord.ping}ms • ${stats.health.discord.guilds} guilds</p>` : ''}
-            </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            ${createStatCard('Total Tickets', stats.tickets.total, 'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z')}
+            ${createStatCard('Open Tickets', stats.tickets.open, 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', 'text-green-400')}
+            ${createStatCard('Total Warnings', stats.warnings.total, 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', 'text-yellow-400')}
+            ${createStatCard('Mod Actions', stats.moderation.total, 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', 'text-red-400')}
           </div>
 
-          ${stats.health.errors && stats.health.errors.length > 0 ? `
-            <div class="bg-red-900/20 border border-red-500/30 rounded-lg p-4 mb-4">
-              <p class="font-bold text-red-400 mb-2">Issues Detected</p>
-              <ul class="list-disc list-inside text-sm text-red-300 space-y-1">
-                ${stats.health.errors.map(err => `<li>${err}</li>`).join('')}
-              </ul>
-            </div>
-          ` : `
-            <div class="bg-green-900/20 border border-green-500/30 rounded-lg p-3 mb-4">
-              <p class="text-sm text-green-400">All systems operational</p>
-            </div>
-          `}
-
-          <button onclick="switchTab('console')" class="w-full bg-zinc-700/30 hover:bg-zinc-700/50 rounded-lg p-4 transition text-left">
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="font-semibold">💻 Console Logs</span>
-                <p class="text-zinc-400 text-sm mt-1">View real-time bot console output</p>
-              </div>
-              <span class="text-indigo-400">View →</span>
-            </div>
-          </button>
-        </div>
-        ` : ''}
-
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h2 class="text-xl font-bold mb-4">Moderation Stats</h2>
-            <div class="space-y-3">
-              <div class="flex justify-between">
-                <span class="text-zinc-400">Kicks</span>
-                <span class="font-bold">${stats.moderation.kicks}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-zinc-400">Bans</span>
-                <span class="font-bold">${stats.moderation.bans}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-zinc-400">Mutes</span>
-                <span class="font-bold">${stats.moderation.mutes}</span>
-              </div>
-            </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${createActionCard(
+              'AutoMod Settings',
+              'Configure automated moderation rules and filters',
+              'Configure AutoMod',
+              'automod',
+              'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+            )}
+            ${createActionCard(
+              'Manage Backups',
+              'View, create, and restore server backups',
+              'View Backups',
+              'backups',
+              'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12'
+            )}
+            ${createActionCard(
+              'Server Config',
+              'Update general server settings and preferences',
+              'Open Configuration',
+              'config',
+              'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z'
+            )}
           </div>
 
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h2 class="text-xl font-bold mb-4">Recent Warnings</h2>
-            <div class="space-y-2">
-              ${stats.warnings.recent.length === 0 ? '<p class="text-zinc-400 text-sm">No recent warnings</p>' : stats.warnings.recent.slice(0, 5).map(w => `
-                <div class="text-sm flex items-center">
-                  ${renderUserTag(w.user_id, true)}
-                  <span class="text-zinc-500 mx-2">•</span>
-                  <span class="text-zinc-300">${w.reason || 'No reason'}</span>
+          ${stats.health ? `
+          <div class="bg-zinc-800 rounded-lg overflow-hidden border ${stats.health.status === 'healthy' ? 'border-green-500/50' : stats.health.status === 'degraded' ? 'border-yellow-500/50' : 'border-red-500/50'}">
+            <div class="bg-zinc-900/50 p-6 border-b border-zinc-700">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <svg class="w-8 h-8 ${stats.health.status === 'healthy' ? 'text-green-400' : stats.health.status === 'degraded' ? 'text-yellow-400' : 'text-red-400'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <div>
+                    <h2 class="text-2xl font-bold text-white">System Health</h2>
+                    <p class="text-sm text-zinc-300 mt-1">Real-time monitoring of bot performance</p>
+                  </div>
                 </div>
-              `).join('')}
+                <span class="px-4 py-2 rounded-lg text-sm font-bold uppercase ${stats.health.status === 'healthy' ? 'bg-green-500/20 text-green-300 border border-green-500/50' : stats.health.status === 'degraded' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50' : 'bg-red-500/20 text-red-300 border border-red-500/50'}">
+                  ${stats.health.status}
+                </span>
+              </div>
+            </div>
+
+            <div class="p-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                ${createMetricCard(
+                  'Uptime',
+                  formatUptime(stats.health.uptime),
+                  'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+                  'text-blue-400'
+                )}
+                <div class="flex items-center justify-between p-4 bg-zinc-700/50 rounded-lg">
+                  <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                    <span class="text-zinc-300">Memory</span>
+                  </div>
+                  <div>
+                    <div class="text-white font-semibold text-right">${stats.health.memory.used}MB <span class="text-sm text-zinc-400">/ ${stats.health.memory.total}MB</span></div>
+                    <div class="w-32 bg-zinc-700 rounded-full h-2 mt-2">
+                      <div class="h-2 rounded-full transition-all ${stats.health.memory.percentage > 90 ? 'bg-red-500' : stats.health.memory.percentage > 75 ? 'bg-yellow-500' : 'bg-green-500'}"
+                           style="width: ${stats.health.memory.percentage}%"></div>
+                    </div>
+                    <p class="text-xs text-zinc-400 mt-1 text-right">${stats.health.memory.percentage}% used</p>
+                  </div>
+                </div>
+                ${createMetricCard(
+                  'Database',
+                  stats.health.database.connected ? 'Connected' : 'Disconnected',
+                  'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4',
+                  'text-cyan-400',
+                  stats.health.database.connected ? { text: `${stats.health.database.responseTime}ms`, class: 'bg-green-500/20 text-green-300' } : null
+                )}
+                ${createMetricCard(
+                  'Discord API',
+                  stats.health.discord.connected ? 'Connected' : 'Disconnected',
+                  'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+                  'text-indigo-400',
+                  stats.health.discord.connected ? { text: `${stats.health.discord.ping}ms`, class: 'bg-green-500/20 text-green-300' } : null
+                )}
+              </div>
+
+              ${stats.health.errors && stats.health.errors.length > 0 ? `
+                <div class="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
+                  <div class="flex items-center gap-2 mb-3">
+                    <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="font-bold text-red-300">Issues Detected</p>
+                  </div>
+                  <ul class="list-disc list-inside text-sm text-red-200 space-y-1">
+                    ${stats.health.errors.map(err => `<li>${err}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : `
+                <div class="bg-green-900/20 border border-green-500/50 rounded-lg p-4">
+                  <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-sm font-medium text-green-300">All systems operational</p>
+                  </div>
+                </div>
+              `}
             </div>
           </div>
-        </div>
+          ` : ''}
+
+          ${createSectionCard(
+            'Moderation Stats',
+            'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+            `
+              <div class="space-y-3">
+                <div class="flex justify-between items-center p-3 bg-zinc-700/50 rounded">
+                  <span class="text-zinc-300 font-medium">Kicks</span>
+                  <span class="font-bold text-xl text-white">${stats.moderation.kicks}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-zinc-700/50 rounded">
+                  <span class="text-zinc-300 font-medium">Bans</span>
+                  <span class="font-bold text-xl text-white">${stats.moderation.bans}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-zinc-700/50 rounded">
+                  <span class="text-zinc-300 font-medium">Mutes</span>
+                  <span class="font-bold text-xl text-white">${stats.moderation.mutes}</span>
+                </div>
+              </div>
+            `
+          )}
+
+          ${createSectionCard(
+            'Recent Warnings',
+            'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+            stats.warnings.recent.length === 0 ? `
+              <div class="py-8 text-center">
+                <svg class="w-12 h-12 mx-auto mb-3 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-zinc-400 text-sm">No recent warnings</p>
+              </div>
+            ` : `
+              <div class="space-y-3">
+                ${stats.warnings.recent.slice(0, 5).map(w => `
+                  <div class="flex items-center gap-2 p-3 bg-zinc-700/50 rounded text-sm">
+                    ${renderUserTag(w.user_id, true)}
+                    <span class="text-zinc-600">•</span>
+                    <span class="text-zinc-300 flex-1 truncate">${w.reason || 'No reason'}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `
+          )}
         </div>
       `;
     }
@@ -1004,13 +1103,11 @@
       const config = guildData.config;
       return `
         <div class="max-w-4xl mx-auto space-y-6">
-          <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold">⚙️ Server Configuration</h1>
-            <button type="button" onclick="switchTab('docs')" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm transition">📚 View Docs</button>
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <h1 class="text-2xl font-bold text-white">Server Configuration</h1>
           </div>
           <form id="config-form" class="space-y-6">
-            <!-- General Settings -->
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">⚙️ General Settings</h2>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1031,8 +1128,63 @@
               </div>
             </div>
 
-            <!-- Welcome & Goodbye Module -->
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold mb-4">🧩 Modules & Features</h2>
+              <p class="text-sm text-zinc-400 mb-4">Enable or disable specific bot features. Disabled modules will be hidden from the dashboard.</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🎫</span>
+                    <span class="text-sm font-medium">Ticket System</span>
+                  </div>
+                  <input type="checkbox" name="tickets_enabled" ${config.tickets_enabled !== false ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">⚠️</span>
+                    <span class="text-sm font-medium">Warnings System</span>
+                  </div>
+                  <input type="checkbox" name="warnings_enabled" ${config.warnings_enabled !== false ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">📊</span>
+                    <span class="text-sm font-medium">Analytics Tracking</span>
+                  </div>
+                  <input type="checkbox" name="analytics_enabled" ${config.analytics_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🔨</span>
+                    <span class="text-sm font-medium">Moderation Features</span>
+                  </div>
+                  <input type="checkbox" name="moderation_enabled" ${config.moderation_enabled !== false ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🛡️</span>
+                    <span class="text-sm font-medium">AutoMod</span>
+                  </div>
+                  <input type="checkbox" name="automod_enabled" ${config.automod_enabled !== false ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">📈</span>
+                    <span class="text-sm font-medium">Leveling/XP System</span>
+                  </div>
+                  <input type="checkbox" name="leveling_enabled" ${config.leveling_enabled !== false ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🎵</span>
+                    <span class="text-sm font-medium">Music Player</span>
+                  </div>
+                  <input type="checkbox" name="music_enabled" ${config.music_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">👋 Welcome & Goodbye</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
@@ -1090,8 +1242,7 @@
               </div>
             </div>
 
-            <!-- Leveling System Module -->
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">📈 Leveling & XP System</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
@@ -1134,8 +1285,7 @@
               </div>
             </div>
 
-            <!-- Moderation Module -->
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">🛡️ Moderation</h2>
               <div class="space-y-4">
                 <div>
@@ -1201,7 +1351,7 @@
             </div>
 
             <!-- Tickets Module -->
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">🎫 Ticket System</h2>
               <div class="space-y-4">
                 <div>
@@ -1294,7 +1444,7 @@
             </div>
 
             <!-- Logging Module -->
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">📝 Logging</h2>
               <div class="mb-4">
                 <label class="block text-sm font-medium mb-2">Audit Log Channel ID</label>
@@ -1351,7 +1501,7 @@
             </div>
 
             <!-- Starboard Module -->
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">⭐ Starboard</h2>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1379,10 +1529,26 @@
 
     function renderTicketsTab() {
       const tickets = guildData.tickets || [];
+      const openTickets = tickets.filter(t => t.status === 'open');
+      const closedTickets = tickets.filter(t => t.status === 'closed');
+
       return `
-        <div class="bg-zinc-800 rounded-lg">
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg">
           <div class="p-6 border-b border-zinc-700">
-            <h2 class="text-xl font-bold">All Tickets</h2>
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-xl font-bold text-white">Tickets</h2>
+              <div class="flex gap-2">
+                <button onclick="filterTickets('all')" id="filter-all" class="px-4 py-2 text-sm rounded transition bg-indigo-600 text-white">
+                  All (${tickets.length})
+                </button>
+                <button onclick="filterTickets('open')" id="filter-open" class="px-4 py-2 text-sm rounded transition bg-zinc-700 text-zinc-300 hover:bg-zinc-600">
+                  Open (${openTickets.length})
+                </button>
+                <button onclick="filterTickets('closed')" id="filter-closed" class="px-4 py-2 text-sm rounded transition bg-zinc-700 text-zinc-300 hover:bg-zinc-600">
+                  Closed (${closedTickets.length})
+                </button>
+              </div>
+            </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full">
@@ -1393,24 +1559,26 @@
                   <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Subject</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Status</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Created</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Closed</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Actions</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-zinc-700">
-                ${tickets.length === 0 ? '<tr><td colspan="6" class="px-6 py-8 text-center text-zinc-400">No tickets found</td></tr>' : tickets.map(t => `
-                  <tr class="hover:bg-zinc-750">
+              <tbody id="tickets-tbody" class="divide-y divide-zinc-700">
+                ${tickets.length === 0 ? '<tr><td colspan="7" class="px-6 py-8 text-center text-zinc-400">No tickets found</td></tr>' : tickets.map(t => `
+                  <tr class="hover:bg-zinc-750 ticket-row" data-status="${t.status}">
                     <td class="px-6 py-4 text-sm font-mono">#${t.id}</td>
                     <td class="px-6 py-4 text-sm">${renderUserTag(t.user_id, true)}</td>
                     <td class="px-6 py-4 text-sm">${t.subject || 'No subject'}</td>
                     <td class="px-6 py-4 text-sm">
-                      <span class="px-2 py-1 text-xs rounded ${t.status === 'open' ? 'bg-green-900/30 text-green-400' : 'bg-zinc-700 text-zinc-400'}">
-                        ${t.status}
+                      <span class="px-2 py-1 text-xs rounded ${t.status === 'open' ? 'bg-green-900/30 text-green-400 border border-green-500/30' : 'bg-red-900/30 text-red-400 border border-red-500/30'}">
+                        ${t.status === 'open' ? '🟢 Open' : '🔴 Closed'}
                       </span>
                     </td>
                     <td class="px-6 py-4 text-sm text-zinc-400">${new Date(t.created_at * 1000).toLocaleDateString()}</td>
+                    <td class="px-6 py-4 text-sm text-zinc-400">${t.closed_at ? new Date(t.closed_at * 1000).toLocaleDateString() : '-'}</td>
                     <td class="px-6 py-4 text-sm">
                       <button onclick="viewTicketTranscript(${t.id})" class="px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 rounded transition-colors">
-                        View Transcript
+                        📜 View ${t.status === 'closed' ? 'Transcript' : 'Messages'}
                       </button>
                     </td>
                   </tr>
@@ -1420,6 +1588,33 @@
           </div>
         </div>
       `;
+    }
+
+    function filterTickets(status) {
+      const allRows = document.querySelectorAll('.ticket-row');
+      const filterButtons = ['filter-all', 'filter-open', 'filter-closed'];
+
+      filterButtons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          btn.classList.remove('bg-indigo-600', 'text-white');
+          btn.classList.add('bg-zinc-700', 'text-zinc-300', 'hover:bg-zinc-600');
+        }
+      });
+
+      const activeBtn = document.getElementById('filter-' + status);
+      if (activeBtn) {
+        activeBtn.classList.remove('bg-zinc-700', 'text-zinc-300', 'hover:bg-zinc-600');
+        activeBtn.classList.add('bg-indigo-600', 'text-white');
+      }
+
+      allRows.forEach(row => {
+        if (status === 'all') {
+          row.style.display = '';
+        } else {
+          row.style.display = row.dataset.status === status ? '' : 'none';
+        }
+      });
     }
 
     function renderWarningsTab() {
@@ -1434,10 +1629,10 @@
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg">
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg">
           <div class="p-6 border-b border-zinc-700">
             <div class="flex items-center justify-between mb-4">
-              <h2 class="text-xl font-bold">All Warnings</h2>
+              <h2 class="text-xl font-bold text-white">All Warnings</h2>
               <div class="flex-1 max-w-md ml-6">
                 <input
                   type="text"
@@ -1492,10 +1687,10 @@
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg">
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg">
           <div class="p-6 border-b border-zinc-700">
             <div class="flex items-center justify-between mb-4">
-              <h2 class="text-xl font-bold">Audit Logs</h2>
+              <h2 class="text-xl font-bold text-white">Audit Logs</h2>
               <div class="flex-1 max-w-md ml-6">
                 <input
                   type="text"
@@ -1537,17 +1732,23 @@
     }
 
     function renderAutomodTab() {
+      setTimeout(() => {
+        if (!window.securityManager) {
+          window.securityManager = new SecurityManager();
+        }
+        window.securityManager.init();
+      }, 100);
+
       const automod = guildData.automod || {};
       const config = guildData.config || {};
       return `
         <div class="max-w-4xl mx-auto space-y-6">
-          <div class="flex items-center justify-between mb-6">
-            <h1 class="text-2xl font-bold">🛡️ AutoMod Configuration</h1>
-            <button type="button" onclick="switchTab('docs')" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm transition">📚 View Docs</button>
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <h1 class="text-2xl font-bold text-white">AutoMod Configuration</h1>
           </div>
 
           <form id="automod-form" class="space-y-6">
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">🚫 Spam Detection</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
@@ -1557,21 +1758,36 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium mb-2">Messages Count</label>
-                    <input type="number" name="automod_spam_count" value="${config.automod_spam_count || 5}" min="2" max="20"
+                    <input type="number" name="spam_threshold" value="${automod.spam_threshold || 5}" min="3" max="10"
                       class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
                     <p class="text-xs text-zinc-400 mt-1">Number of duplicate messages to trigger spam filter</p>
                   </div>
                   <div>
                     <label class="block text-sm font-medium mb-2">Time Window (seconds)</label>
-                    <input type="number" name="automod_spam_interval" value="${config.automod_spam_interval || 5}" min="1" max="60"
+                    <input type="number" name="spam_interval" value="${automod.spam_interval || 5}" min="3" max="30"
                       class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
                     <p class="text-xs text-zinc-400 mt-1">Time window to detect spam messages</p>
+                  </div>
+                </div>
+                <div class="border-t border-zinc-700 pt-4 mt-4">
+                  <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                    <div>
+                      <span class="text-sm font-medium block">Similar Message Detection</span>
+                      <span class="text-xs text-zinc-400">Detect spam using similar (not identical) messages</span>
+                    </div>
+                    <input type="checkbox" name="spam_similarity_enabled" ${automod.spam_similarity_enabled ? 'checked' : ''} class="w-4 h-4">
+                  </label>
+                  <div class="mt-4">
+                    <label class="block text-sm font-medium mb-2">Similarity Threshold (%)</label>
+                    <input type="number" name="spam_similarity_threshold" value="${automod.spam_similarity_threshold || 80}" min="50" max="100"
+                      class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <p class="text-xs text-zinc-400 mt-1">How similar messages must be to trigger (80% = very similar)</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">🔗 Link Filtering</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
@@ -1587,7 +1803,7 @@
               </div>
             </div>
 
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">📢 Caps Lock Detection</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
@@ -1611,7 +1827,7 @@
               </div>
             </div>
 
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">@ Mention Spam</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
@@ -1627,7 +1843,7 @@
               </div>
             </div>
 
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">🤬 Profanity Filter</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
@@ -1651,15 +1867,26 @@
                   <p class="text-xs text-zinc-400 mt-1">One word per line. Add custom words/phrases to filter. Case-insensitive.</p>
                   <p class="text-xs text-yellow-400 mt-2">💡 Custom words are added ON TOP of the selected preset above.</p>
                 </div>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div>
+                    <span class="text-sm font-medium block">Use Word Boundaries</span>
+                    <span class="text-xs text-zinc-400">Prevents false positives like "class" containing "ass"</span>
+                  </div>
+                  <input type="checkbox" name="profanity_use_word_boundaries" ${automod.profanity_use_word_boundaries !== false ? 'checked' : ''} class="w-4 h-4">
+                </label>
               </div>
             </div>
 
-            <div class="bg-zinc-800 p-6 rounded-lg">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
               <h2 class="text-xl font-bold mb-4">📨 Invite Blocking</h2>
               <div class="space-y-4">
                 <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
                   <span class="text-sm font-medium">Block Discord Invites</span>
                   <input type="checkbox" name="invites_enabled" ${automod.invites_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <span class="text-sm font-medium">Allow Own Server Invites</span>
+                  <input type="checkbox" name="invites_allow_own" ${automod.invites_allow_own !== false ? 'checked' : ''} class="w-4 h-4">
                 </label>
                 <div>
                   <label class="block text-sm font-medium mb-2">Allowed Server IDs</label>
@@ -1670,12 +1897,152 @@
               </div>
             </div>
 
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold mb-4">🎣 Phishing Detection</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div>
+                    <span class="text-sm font-medium block">Enable Phishing Detection</span>
+                    <span class="text-xs text-zinc-400">Blocks known phishing/scam links automatically</span>
+                  </div>
+                  <input type="checkbox" id="phishing-enabled" name="phishing_enabled" ${automod.phishing_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Action for Phishing Links</label>
+                  <select id="phishing-action" name="phishing_action" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <option value="warn" ${(automod.phishing_action || 'warn') === 'warn' ? 'selected' : ''}>Warn User</option>
+                    <option value="timeout" ${automod.phishing_action === 'timeout' ? 'selected' : ''}>Timeout (5 min)</option>
+                    <option value="kick" ${automod.phishing_action === 'kick' ? 'selected' : ''}>Kick User</option>
+                    <option value="ban" ${automod.phishing_action === 'ban' ? 'selected' : ''}>Ban User</option>
+                  </select>
+                  <p class="text-xs text-zinc-400 mt-1">Detects discord-nitro scams, fake steam links, and other phishing attempts.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold mb-4">📅 Account Age Requirement</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div>
+                    <span class="text-sm font-medium block">Enable Account Age Check</span>
+                    <span class="text-xs text-zinc-400">Auto-kicks accounts below minimum age</span>
+                  </div>
+                  <input type="checkbox" id="account-age-enabled" name="account_age_enabled" ${automod.account_age_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Minimum Account Age (days)</label>
+                  <input type="number" id="account-age-min-days" name="account_age_min_days" value="${automod.account_age_min_days || 7}" min="1" max="365"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                  <p class="text-xs text-zinc-400 mt-1">New members must have Discord accounts at least this old.</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Action for New Accounts</label>
+                  <select id="account-age-action" name="account_age_action" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <option value="kick" ${(automod.account_age_action || 'kick') === 'kick' ? 'selected' : ''}>Kick User</option>
+                    <option value="ban" ${automod.account_age_action === 'ban' ? 'selected' : ''}>Ban User</option>
+                  </select>
+                  <p class="text-xs text-zinc-400 mt-1">User receives a DM explaining the requirement before being removed.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold mb-4">🔍 Alt Account Detection</h2>
+              <div class="space-y-4">
+                <label class="flex items-center justify-between p-3 bg-zinc-700/50 rounded">
+                  <div>
+                    <span class="text-sm font-medium block">Enable Alt Detection</span>
+                    <span class="text-xs text-zinc-400">Flags suspicious accounts with AI scoring</span>
+                  </div>
+                  <input type="checkbox" id="alt-detection-enabled" name="alt_detection_enabled" ${automod.alt_detection_enabled ? 'checked' : ''} class="w-4 h-4">
+                </label>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Detection Sensitivity</label>
+                  <select id="alt-detection-sensitivity" name="alt_detection_sensitivity" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <option value="1" ${automod.alt_detection_sensitivity === 1 ? 'selected' : ''}>1 - Very Strict (70+ score)</option>
+                    <option value="2" ${automod.alt_detection_sensitivity === 2 ? 'selected' : ''}>2 - Strict (50+ score)</option>
+                    <option value="3" ${(automod.alt_detection_sensitivity || 3) === 3 ? 'selected' : ''}>3 - Medium (35+ score) - Recommended</option>
+                    <option value="4" ${automod.alt_detection_sensitivity === 4 ? 'selected' : ''}>4 - Lenient (25+ score)</option>
+                    <option value="5" ${automod.alt_detection_sensitivity === 5 ? 'selected' : ''}>5 - Very Lenient (15+ score)</option>
+                  </select>
+                  <p class="text-xs text-zinc-400 mt-1">Lower sensitivity = more suspicious accounts flagged.</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Action for Critical Risk</label>
+                  <select id="alt-detection-action" name="alt_detection_action" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500">
+                    <option value="warn" ${(automod.alt_detection_action || 'warn') === 'warn' ? 'selected' : ''}>Warn Only (Log to Mod Channel)</option>
+                    <option value="kick" ${automod.alt_detection_action === 'kick' ? 'selected' : ''}>Kick User</option>
+                    <option value="ban" ${automod.alt_detection_action === 'ban' ? 'selected' : ''}>Ban User</option>
+                  </select>
+                  <p class="text-xs text-zinc-400 mt-1">Only applies to critical risk accounts. All flagged accounts are logged.</p>
+                </div>
+                <div class="bg-zinc-900 p-3 rounded border border-zinc-700">
+                  <p class="text-xs text-zinc-300 font-medium mb-2">🤖 Detection Factors:</p>
+                  <ul class="text-xs text-zinc-400 space-y-1 ml-4">
+                    <li>• Account age (<1 day, <7 days, <30 days)</li>
+                    <li>• Default Discord avatar</li>
+                    <li>• Suspicious username patterns</li>
+                    <li>• Rapid joins from same invite</li>
+                    <li>• Similar usernames to recent joins</li>
+                    <li>• Joining during active raid</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold mb-4">🔒 Raid Lockdown</h2>
+              <div class="space-y-4">
+                <div id="lockdown-status" class="p-4 rounded-lg border-2 status-success">
+                  <div class="flex items-center justify-between mb-2">
+                    <span id="lockdown-status-text" class="font-bold text-lg">Lockdown Inactive</span>
+                    <button type="button" id="lockdown-toggle-btn" class="btn-warning px-4 py-2 rounded font-medium transition">
+                      Enable Lockdown
+                    </button>
+                  </div>
+                  <p id="lockdown-time" class="text-sm text-zinc-400">Not active</p>
+                </div>
+                <div class="bg-zinc-900 p-3 rounded border border-zinc-700">
+                  <p class="text-xs text-zinc-300 font-medium mb-2">ℹ️ What is Lockdown Mode?</p>
+                  <ul class="text-xs text-zinc-400 space-y-1 ml-4">
+                    <li>• Automatically activates when mass joins detected</li>
+                    <li>• Enhanced security measures for new members</li>
+                    <li>• Manual control available via this button</li>
+                    <li>• Can also be controlled with <code>/automod lockdown</code> command</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold mb-4">🛡️ Exemptions</h2>
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Exempt Roles</label>
+                  <textarea name="exempt_roles" rows="3" placeholder="Role IDs (one per line or comma-separated)&#10;123456789012345678&#10;987654321098765432"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${(automod.exempt_roles || '').split(',').map(r => r.trim()).filter(r => r.length > 0).join('\n')}</textarea>
+                  <p class="text-xs text-zinc-400 mt-1">Users with these roles bypass all auto-moderation (in addition to Administrators).</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-2">Exempt Channels</label>
+                  <textarea name="exempt_channels" rows="3" placeholder="Channel IDs (one per line or comma-separated)&#10;123456789012345678&#10;987654321098765432"
+                    class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 focus:outline-none focus:border-indigo-500 font-mono text-sm">${(automod.exempt_channels || '').split(',').map(c => c.trim()).filter(c => c.length > 0).join('\n')}</textarea>
+                  <p class="text-xs text-zinc-400 mt-1">Auto-moderation is disabled in these channels.</p>
+                </div>
+              </div>
+            </div>
+
             <div class="flex justify-end">
               <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 px-8 py-3 rounded font-medium transition">
                 💾 Save AutoMod Settings
               </button>
             </div>
           </form>
+
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6 mt-6">
+            <div id="custom-filters-container"></div>
+          </div>
         </div>
       `;
     }
@@ -1684,8 +2051,8 @@
       const rules = guildData.rules || [];
       return `
         <div class="space-y-6">
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h2 class="text-xl font-bold mb-4">Add New Rule</h2>
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-white mb-4">Add New Rule</h2>
             <form id="add-rule-form" class="space-y-4">
               <div>
                 <label class="block text-sm font-medium mb-2">Rule Title</label>
@@ -1701,8 +2068,8 @@
             </form>
           </div>
 
-          <div class="bg-zinc-800 p-6 rounded-lg">
-            <h2 class="text-xl font-bold mb-4">Server Rules</h2>
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-white mb-4">Server Rules</h2>
             ${rules.length === 0 ? '<p class="text-zinc-400">No rules configured</p>' : `
               <div class="space-y-4">
                 ${rules.map(rule => `
@@ -1718,6 +2085,56 @@
                 `).join('')}
               </div>
             `}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderXPBoostersTab() {
+      return `
+        <div class="max-w-6xl mx-auto space-y-6">
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <div>
+              <h1 class="text-2xl font-bold text-white">XP Multiplier Management</h1>
+              <p class="text-zinc-400 mt-1">Configure XP boosters for roles and channels</p>
+            </div>
+          </div>
+
+          <div id="xp-boosters-container">
+            <div class="flex items-center justify-center py-12">
+              <div class="text-zinc-400">Loading XP boosters...</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMusicTab() {
+      return `
+        <div class="max-w-7xl mx-auto space-y-6">
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <h1 class="text-2xl font-bold text-white">Music Player</h1>
+            <p class="text-zinc-400 mt-1">Control music playback and configure settings</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold text-white mb-4">Now Playing & Queue</h2>
+              <div id="music-queue">
+                <div class="flex items-center justify-center py-12">
+                  <div class="text-zinc-400">Loading music queue...</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h2 class="text-xl font-bold text-white mb-4">Music Settings</h2>
+              <div id="music-settings">
+                <div class="flex items-center justify-center py-12">
+                  <div class="text-zinc-400">Loading music settings...</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       `;
@@ -1795,46 +2212,88 @@
           log_ban_events: formData.get('log_ban_events') === 'on',
           log_invite_events: formData.get('log_invite_events') === 'on',
           starboard_channel_id: formData.get('starboard_channel_id') || null,
-          starboard_threshold: parseInt(formData.get('starboard_threshold')) || 3
+          starboard_threshold: parseInt(formData.get('starboard_threshold')) || 3,
+          tickets_enabled: formData.get('tickets_enabled') === 'on',
+          warnings_enabled: formData.get('warnings_enabled') === 'on',
+          analytics_enabled: formData.get('analytics_enabled') === 'on',
+          moderation_enabled: formData.get('moderation_enabled') === 'on',
+          automod_enabled: formData.get('automod_enabled') === 'on',
+          leveling_enabled: formData.get('leveling_enabled') === 'on',
+          music_enabled: formData.get('music_enabled') === 'on'
         };
         const result = await API.updateGuildConfig(currentGuild, config);
         if (result.success) {
           alert('Configuration saved!');
           await loadGuildData();
+          renderGuildDashboard();
         }
       } else if (e.target.id === 'automod-form') {
         e.preventDefault();
         const formData = new FormData(e.target);
 
+        const exemptRolesRaw = formData.get('exempt_roles') || '';
+        const exemptChannelsRaw = formData.get('exempt_channels') || '';
+
+        const rolesValidation = Utils.validateChannelIds(exemptRolesRaw);
+        if (!rolesValidation.valid) {
+          Utils.showToast(`Invalid role IDs: ${rolesValidation.invalid.join(', ')}`, 'error');
+          return;
+        }
+
+        const channelsValidation = Utils.validateChannelIds(exemptChannelsRaw);
+        if (!channelsValidation.valid) {
+          Utils.showToast(`Invalid channel IDs: ${channelsValidation.invalid.join(', ')}`, 'error');
+          return;
+        }
+
+        const exemptRoles = rolesValidation.ids.join(',');
+        const exemptChannels = channelsValidation.ids.join(',');
+
         const automodConfig = {
           spam_enabled: formData.get('spam_enabled') === 'on',
+          spam_threshold: parseInt(formData.get('spam_threshold')) || 5,
+          spam_interval: parseInt(formData.get('spam_interval')) || 5,
+          spam_similarity_enabled: formData.get('spam_similarity_enabled') === 'on',
+          spam_similarity_threshold: parseInt(formData.get('spam_similarity_threshold')) || 80,
           links_enabled: formData.get('links_enabled') === 'on',
+          links_whitelist: formData.get('automod_allowed_links') || null,
           caps_enabled: formData.get('caps_enabled') === 'on',
+          caps_threshold: parseInt(formData.get('automod_caps_percentage')) || 70,
+          caps_min_length: parseInt(formData.get('automod_caps_min_length')) || 10,
           mentions_enabled: formData.get('mentions_enabled') === 'on',
+          mentions_threshold: parseInt(formData.get('automod_max_mentions')) || 5,
           profanity_enabled: formData.get('profanity_enabled') === 'on',
-          invites_enabled: formData.get('invites_enabled') === 'on'
+          profanity_preset: formData.get('automod_profanity_preset') || 'moderate',
+          profanity_list: formData.get('automod_profanity_list') || null,
+          profanity_use_word_boundaries: formData.get('profanity_use_word_boundaries') === 'on',
+          invites_enabled: formData.get('invites_enabled') === 'on',
+          invites_allow_own: formData.get('invites_allow_own') === 'on',
+          invites_allowlist: formData.get('automod_allow_invites_list') || null,
+          exempt_roles: exemptRoles || null,
+          exempt_channels: exemptChannels || null,
+          phishing_enabled: formData.get('phishing_enabled') === 'on',
+          phishing_action: formData.get('phishing_action') || 'warn',
+          account_age_enabled: formData.get('account_age_enabled') === 'on',
+          account_age_min_days: parseInt(formData.get('account_age_min_days')) || 7,
+          account_age_action: formData.get('account_age_action') || 'kick',
+          alt_detection_enabled: formData.get('alt_detection_enabled') === 'on',
+          alt_detection_sensitivity: parseInt(formData.get('alt_detection_sensitivity')) || 3,
+          alt_detection_action: formData.get('alt_detection_action') || 'warn'
         };
 
-        const guildConfig = {
-          automod_spam_count: parseInt(formData.get('automod_spam_count')) || 5,
-          automod_spam_interval: parseInt(formData.get('automod_spam_interval')) || 5,
-          automod_allowed_links: formData.get('automod_allowed_links') || null,
-          automod_caps_percentage: parseInt(formData.get('automod_caps_percentage')) || 70,
-          automod_caps_min_length: parseInt(formData.get('automod_caps_min_length')) || 10,
-          automod_max_mentions: parseInt(formData.get('automod_max_mentions')) || 5,
-          automod_profanity_preset: formData.get('automod_profanity_preset') || 'moderate',
-          automod_profanity_list: formData.get('automod_profanity_list') || null,
-          automod_allow_invites_list: formData.get('automod_allow_invites_list') || null
-        };
+        Utils.showLoadingOverlay('Saving AutoMod settings...');
 
-        const [automodResult, configResult] = await Promise.all([
-          API.updateAutomod(currentGuild, automodConfig),
-          API.updateGuildConfig(currentGuild, guildConfig)
-        ]);
+        try {
+          const automodResult = await API.updateAutomod(currentGuild, automodConfig);
 
-        if (automodResult.success && configResult.success) {
-          alert('AutoMod settings saved!');
-          await loadGuildData();
+          if (automodResult.success) {
+            Utils.showToast('AutoMod settings saved successfully!', 'success');
+            await loadGuildData();
+          }
+        } catch (error) {
+          console.error('Failed to save automod settings:', error);
+        } finally {
+          Utils.hideLoadingOverlay();
         }
       } else if (e.target.id === 'add-rule-form') {
         e.preventDefault();
@@ -1911,8 +2370,8 @@
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">💬 Live Chat Viewer</h2>
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+          <h2 class="text-2xl font-bold text-white mb-6">Live Chat Viewer</h2>
           <div class="mb-4">
             <label class="block text-sm font-medium mb-2">Select Channel</label>
             <select id="chat-channel-selector" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2">
@@ -1933,8 +2392,8 @@
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">🔒 Permission Manager</h2>
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+          <h2 class="text-2xl font-bold text-white mb-6">Permission Manager</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h3 class="text-lg font-semibold mb-4">Server Roles</h3>
@@ -1961,15 +2420,64 @@
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">📋 Moderation Queue</h2>
-          <div class="flex gap-2 mb-4">
-            <button data-appeal-filter="pending" class="px-4 py-2 rounded bg-blue-600 text-white">Pending</button>
-            <button data-appeal-filter="approved" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Approved</button>
-            <button data-appeal-filter="denied" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Denied</button>
-            <button data-appeal-filter="all" class="px-4 py-2 rounded bg-gray-200 text-gray-700">All</button>
+        <div class="space-y-6">
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-2xl font-bold text-white mb-2">Moderation Queue</h2>
+                <p class="text-zinc-400 text-sm">Review and manage pending appeals and moderation requests</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-zinc-400">Total Appeals:</span>
+                <span id="total-appeals-count" class="text-2xl font-bold text-white">0</span>
+              </div>
+            </div>
+
+            <div class="flex gap-2 mb-6 flex-wrap">
+              <button data-appeal-filter="pending" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Pending
+                </span>
+              </button>
+              <button data-appeal-filter="approved" class="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium transition-colors">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Approved
+                </span>
+              </button>
+              <button data-appeal-filter="denied" class="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium transition-colors">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Denied
+                </span>
+              </button>
+              <button data-appeal-filter="all" class="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium transition-colors">
+                <span class="flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  All
+                </span>
+              </button>
+            </div>
+
+            <div id="appeals-list" class="space-y-3">
+              <div class="text-center py-12 text-zinc-500">
+                <svg class="w-16 h-16 mx-auto mb-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p class="text-lg font-medium mb-2">No appeals found</p>
+                <p class="text-sm">Appeals will appear here when submitted</p>
+              </div>
+            </div>
           </div>
-          <div id="appeals-list" class="space-y-3"></div>
         </div>
       `;
     }
@@ -1982,46 +2490,133 @@
         window.analyticsCharts.init();
       }, 100);
 
+      const analyticsEnabled = !!guildData.config.analytics_enabled;
+
       return `
-        <div class="bg-zinc-800 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">📈 Analytics</h2>
-          <div class="flex gap-2 mb-6">
-            <button data-time-range="24h" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Last 24h</button>
-            <button data-time-range="7d" class="px-4 py-2 rounded bg-blue-600 text-white">Last 7 Days</button>
-            <button data-time-range="30d" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Last 30 Days</button>
+        <div class="space-y-6">
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-2xl font-bold text-white mb-2">Server Analytics</h2>
+                <p class="text-zinc-400 text-sm">Track server activity, engagement, and growth metrics</p>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="window.analyticsCharts?.init()" class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium transition-colors text-sm flex items-center gap-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+                <button data-time-range="24h" class="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium transition-colors text-sm">Last 24h</button>
+                <button data-time-range="7d" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors text-sm">Last 7 Days</button>
+                <button data-time-range="30d" class="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium transition-colors text-sm">Last 30 Days</button>
+              </div>
+            </div>
+            ${analyticsEnabled ? `
+              <div class="bg-green-900/20 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-xs text-green-200">Analytics tracking is active! Data collection started. Charts will populate as activity occurs.</p>
+                </div>
+              </div>
+            ` : `
+              <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="flex-1">
+                  <p class="text-xs text-blue-200">Analytics tracking is not yet active. Enable it in the <button onclick="switchTab('config')" class="underline hover:text-blue-100">Configuration</button> tab under "Modules & Features".</p>
+                </div>
+              </div>
+            `}
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-zinc-900 p-4 rounded-lg">
-              <h3 class="font-semibold mb-3">Messages</h3>
-              <div style="height: 300px; position: relative;">
+
+          <div id="analytics-stats-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            ${createStatCard('Total Messages', 'N/A', 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', 'text-blue-400')}
+            ${createStatCard('Active Members', 'N/A', 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', 'text-green-400')}
+            ${createStatCard('Commands Used', 'N/A', 'M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', 'text-purple-400')}
+            ${createStatCard('Mod Actions', 'N/A', 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', 'text-red-400')}
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Message Activity
+              </h3>
+              <div class="bg-zinc-900 rounded-lg p-4" style="height: 300px; position: relative;">
                 <canvas id="messages-chart"></canvas>
               </div>
             </div>
-            <div class="bg-zinc-900 p-4 rounded-lg">
-              <h3 class="font-semibold mb-3">Members</h3>
-              <div style="height: 300px; position: relative;">
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Member Growth
+              </h3>
+              <div class="bg-zinc-900 rounded-lg p-4" style="height: 300px; position: relative;">
                 <canvas id="members-chart"></canvas>
               </div>
             </div>
-            <div class="bg-zinc-900 p-4 rounded-lg">
-              <h3 class="font-semibold mb-3">Commands Used</h3>
-              <div style="height: 300px; position: relative;">
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Commands Usage
+              </h3>
+              <div class="bg-zinc-900 rounded-lg p-4" style="height: 300px; position: relative;">
                 <canvas id="commands-chart"></canvas>
               </div>
             </div>
-            <div class="bg-zinc-900 p-4 rounded-lg">
-              <h3 class="font-semibold mb-3">Moderation Actions</h3>
-              <div style="height: 300px; position: relative;">
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Moderation Actions
+              </h3>
+              <div class="bg-zinc-900 rounded-lg p-4" style="height: 300px; position: relative;">
                 <canvas id="moderation-chart"></canvas>
               </div>
             </div>
-            <div class="bg-zinc-900 p-4 rounded-lg">
-              <h3 class="font-semibold mb-3">Top Active Users</h3>
-              <div id="top-users-list" class="max-h-64 overflow-y-auto scrollbar-thin"></div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                Top Active Users
+              </h3>
+              <div id="top-users-list" class="space-y-2 max-h-80 overflow-y-auto">
+                <div class="text-center py-8 text-zinc-500">
+                  <p class="text-sm">No data available</p>
+                </div>
+              </div>
             </div>
-            <div class="bg-zinc-900 p-4 rounded-lg">
-              <h3 class="font-semibold mb-3">Most Active Channels</h3>
-              <div id="top-channels-list" class="max-h-64 overflow-y-auto scrollbar-thin"></div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+              <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+                Most Active Channels
+              </h3>
+              <div id="top-channels-list" class="space-y-2 max-h-80 overflow-y-auto">
+                <div class="text-center py-8 text-zinc-500">
+                  <p class="text-sm">No data available</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2037,43 +2632,176 @@
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">⚡ Bulk Actions</h2>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <h3 class="text-lg font-semibold mb-4">Select Action</h3>
-              <div class="flex gap-2 mb-4">
-                <button data-bulk-action="ban" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Ban</button>
-                <button data-bulk-action="kick" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Kick</button>
-                <button data-bulk-action="role_add" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Add Role</button>
-                <button data-bulk-action="role_remove" class="px-4 py-2 rounded bg-gray-200 text-gray-700">Remove Role</button>
+        <div class="space-y-6">
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <h2 class="text-2xl font-bold text-white mb-2">Bulk Actions</h2>
+                <p class="text-zinc-400 text-sm">Perform moderation actions on multiple users at once</p>
               </div>
-              <div id="bulk-role-selector" class="hidden mb-4">
-                <label class="block text-sm font-medium mb-2">Select Role</label>
-                <select id="bulk-role-select" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2">
-                  <option value="">Select a role</option>
-                </select>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-zinc-400">Selected:</span>
+                <span id="bulk-selected-count" class="text-2xl font-bold text-white">0</span>
               </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium mb-2">User IDs (comma or newline separated)</label>
-                <textarea id="bulk-user-input" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 h-32" placeholder="Enter user IDs..."></textarea>
-                <button onclick="window.bulkActions.parseUserInput()" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Add Users</button>
-              </div>
-              <div class="mb-4">
-                <label class="block text-sm font-medium mb-2">Reason</label>
-                <input type="text" id="bulk-reason" class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2" placeholder="Reason for action">
-              </div>
-              <div class="mb-4">
-                <h4 class="text-sm font-medium mb-2">Selected Users (<span id="bulk-selected-count">0</span>)</h4>
-                <div id="bulk-selected-users" class="bg-zinc-900 rounded p-3 max-h-48 overflow-y-auto space-y-2"></div>
-              </div>
-              <button id="bulk-execute-btn" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed">
-                Execute Action
-              </button>
             </div>
-            <div>
-              <h3 class="text-lg font-semibold mb-4">Action History</h3>
-              <div id="bulk-history-list" class="bg-zinc-900 rounded-lg max-h-96 overflow-y-auto scrollbar-thin"></div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+              <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Select Action Type
+                </h3>
+                <div class="grid grid-cols-2 gap-3">
+                  <button data-bulk-action="ban" class="p-4 rounded-lg bg-zinc-700 hover:bg-red-600/20 border-2 border-zinc-600 hover:border-red-500 text-zinc-300 hover:text-white transition-all group">
+                    <div class="flex items-center gap-3">
+                      <svg class="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                      <div class="text-left">
+                        <div class="font-semibold">Ban Users</div>
+                        <div class="text-xs text-zinc-400 group-hover:text-zinc-300">Permanently ban members</div>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button data-bulk-action="kick" class="p-4 rounded-lg bg-zinc-700 hover:bg-orange-600/20 border-2 border-zinc-600 hover:border-orange-500 text-zinc-300 hover:text-white transition-all group">
+                    <div class="flex items-center gap-3">
+                      <svg class="w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <div class="text-left">
+                        <div class="font-semibold">Kick Users</div>
+                        <div class="text-xs text-zinc-400 group-hover:text-zinc-300">Remove from server</div>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button data-bulk-action="role_add" class="p-4 rounded-lg bg-zinc-700 hover:bg-green-600/20 border-2 border-zinc-600 hover:border-green-500 text-zinc-300 hover:text-white transition-all group">
+                    <div class="flex items-center gap-3">
+                      <svg class="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      <div class="text-left">
+                        <div class="font-semibold">Add Role</div>
+                        <div class="text-xs text-zinc-400 group-hover:text-zinc-300">Assign role to users</div>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button data-bulk-action="role_remove" class="p-4 rounded-lg bg-zinc-700 hover:bg-yellow-600/20 border-2 border-zinc-600 hover:border-yellow-500 text-zinc-300 hover:text-white transition-all group">
+                    <div class="flex items-center gap-3">
+                      <svg class="w-6 h-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                      </svg>
+                      <div class="text-left">
+                        <div class="font-semibold">Remove Role</div>
+                        <div class="text-xs text-zinc-400 group-hover:text-zinc-300">Remove role from users</div>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                <div id="bulk-role-selector" class="hidden mt-4">
+                  <label class="block text-sm font-medium text-zinc-300 mb-2">Select Role</label>
+                  <select id="bulk-role-select" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">Choose a role...</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Add Target Users
+                </h3>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-zinc-300 mb-2">User IDs</label>
+                    <textarea id="bulk-user-input" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-4 py-3 text-white h-32 focus:outline-none focus:border-indigo-500 font-mono text-sm" placeholder="Enter user IDs (comma or newline separated)&#10;&#10;Example:&#10;123456789012345678&#10;987654321098765432&#10;or: 123456789012345678, 987654321098765432"></textarea>
+                    <p class="text-xs text-zinc-400 mt-2">Tip: You can paste multiple user IDs separated by commas or new lines</p>
+                  </div>
+                  <button onclick="window.bulkActions.parseUserInput()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Add Users to List
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Action Details
+                </h3>
+                <div class="mb-4">
+                  <label class="block text-sm font-medium text-zinc-300 mb-2">Reason (Optional)</label>
+                  <input type="text" id="bulk-reason" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500" placeholder="Enter reason for this action...">
+                  <p class="text-xs text-zinc-400 mt-2">This reason will be logged and visible in audit logs</p>
+                </div>
+
+                <div class="bg-yellow-900/20 border border-yellow-500/50 rounded-lg p-4 mb-4">
+                  <div class="flex items-start gap-3">
+                    <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div class="text-sm text-yellow-200">
+                      <strong class="font-semibold">Warning:</strong> Bulk actions cannot be undone. Please review your selection carefully before executing.
+                    </div>
+                  </div>
+                </div>
+
+                <button id="bulk-execute-btn" class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Execute Bulk Action
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Selected Users
+                </h3>
+                <div id="bulk-selected-users" class="space-y-2 max-h-96 overflow-y-auto">
+                  <div class="text-center py-8 text-zinc-500">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <p class="text-sm">No users selected</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Action History
+                </h3>
+                <div id="bulk-history-list" class="space-y-2 max-h-96 overflow-y-auto">
+                  <div class="text-center py-8 text-zinc-500">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    <p class="text-sm">No history available</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2089,14 +2817,71 @@
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">💾 Backup Management</h2>
-          <div class="mb-6">
-            <button id="backup-create-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
-              Create New Backup
-            </button>
+        <div class="space-y-6">
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-6">
+              <div>
+                <h2 class="text-2xl font-bold text-white mb-2">💾 Backup Management</h2>
+                <p class="text-zinc-400 text-sm">Create, restore, and manage server configuration backups to protect your settings.</p>
+              </div>
+              <button id="backup-create-btn" class="btn-primary px-6 py-3 flex items-center gap-2 whitespace-nowrap">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create New Backup
+              </button>
+            </div>
+
+            <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+              <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="text-sm text-blue-200">
+                  <strong class="font-semibold">Quick Tip:</strong> Regular backups help you quickly recover your server configuration if something goes wrong. We recommend creating a backup before making major changes.
+                </div>
+              </div>
+            </div>
+
+            <div id="backups-list" class="space-y-4"></div>
           </div>
-          <div id="backups-list" class="space-y-4"></div>
+
+          <div class="bg-zinc-800 border border-zinc-700 rounded-lg p-6">
+            <div class="mb-6">
+              <h2 class="text-2xl font-bold text-white mb-2">⏰ Automatic Database Backups</h2>
+              <p class="text-zinc-400 text-sm">System-generated backups of the entire database (all servers and bot data)</p>
+            </div>
+
+            <div class="mb-6 p-4 bg-zinc-900/50 rounded-lg">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="font-semibold text-white mb-1">⏰ Auto-Backup</h3>
+                  <p class="text-sm text-zinc-400">Automatically create database backups on a schedule</p>
+                </div>
+                <div class="flex items-center gap-4">
+                  <div id="autobackup-status" class="text-sm">
+                    <span class="text-zinc-400">Loading...</span>
+                  </div>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="autobackup-toggle" class="sr-only peer">
+                    <div class="w-11 h-6 bg-zinc-700 peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+              </div>
+              <div id="autobackup-interval-container" class="flex items-center gap-3" style="display: none;">
+                <label class="text-sm text-zinc-300">Interval:</label>
+                <select id="autobackup-interval" class="bg-zinc-700 border border-zinc-600 rounded px-3 py-1 text-sm">
+                  <option value="6">Every 6 hours</option>
+                  <option value="12">Every 12 hours</option>
+                  <option value="24" selected>Every 24 hours</option>
+                  <option value="48">Every 48 hours</option>
+                  <option value="168">Every 7 days</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="system-backups-list" class="space-y-3"></div>
+          </div>
         </div>
       `;
     }
@@ -2104,147 +2889,390 @@
     function renderDashboardAuditTab() {
       setTimeout(() => {
         loadDashboardAudit();
+        initAuditQuickFilters();
       }, 100);
 
       return `
-        <div class="bg-zinc-800 rounded-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">🔐 Dashboard Security Logs</h2>
-          <p class="text-zinc-400 mb-6">Track all dashboard access and actions for security auditing.</p>
+        <div class="bg-zinc-800 border border-zinc-700 rounded-lg">
+          <div class="p-6 border-b border-zinc-700">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-2xl font-bold text-white">Dashboard Security Logs</h2>
+                <p class="text-zinc-400 text-sm mt-1">Track all dashboard access and actions for security auditing</p>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  onclick="exportAuditLogs('csv')"
+                  class="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-sm transition flex items-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  Export CSV
+                </button>
+                <button
+                  onclick="exportAuditLogs('json')"
+                  class="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-sm transition flex items-center gap-2"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  Export JSON
+                </button>
+              </div>
+            </div>
 
-          <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-sm font-medium mb-2">Filter by User</label>
-              <input
-                type="text"
-                id="audit-filter-user"
-                placeholder="User ID..."
-                class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm"
-              />
+            <div class="mb-4">
+              <div class="flex gap-2 mb-4">
+                <button onclick="setQuickFilter('1h')" class="quick-filter-btn px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded transition">Last Hour</button>
+                <button onclick="setQuickFilter('24h')" class="quick-filter-btn px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded transition">Last 24h</button>
+                <button onclick="setQuickFilter('7d')" class="quick-filter-btn px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded transition">Last 7 Days</button>
+                <button onclick="setQuickFilter('30d')" class="quick-filter-btn px-3 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded transition">Last 30 Days</button>
+                <button onclick="setQuickFilter('all')" class="quick-filter-btn active px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 rounded transition">All Time</button>
+              </div>
             </div>
-            <div>
-              <label class="block text-sm font-medium mb-2">Filter by Action</label>
-              <select
-                id="audit-filter-action"
-                class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm"
-              >
-                <option value="">All Actions</option>
-                <option value="LOGIN">Login</option>
-                <option value="LOGOUT">Logout</option>
-                <option value="ACCESS_GUILD">Access Guild</option>
-                <option value="VIEW_CONFIG">View Config</option>
-                <option value="UPDATE_CONFIG">Update Config</option>
-                <option value="VIEW_WARNINGS">View Warnings</option>
-                <option value="DELETE_WARNING">Delete Warning</option>
-                <option value="UPDATE_AUTOMOD">Update AutoMod</option>
-                <option value="EXECUTE_BULK_ACTION">Bulk Action</option>
-                <option value="CREATE_BACKUP">Create Backup</option>
-                <option value="DELETE_BACKUP">Delete Backup</option>
-              </select>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium mb-2 text-zinc-300">Search</label>
+                <input
+                  type="text"
+                  id="audit-filter-search"
+                  placeholder="Username, User ID, or IP..."
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2 text-zinc-300">Action Type</label>
+                <select
+                  id="audit-filter-action"
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                >
+                  <option value="">All Actions</option>
+                  <option value="LOGIN">Login</option>
+                  <option value="LOGOUT">Logout</option>
+                  <option value="ACCESS_GUILD">Access Guild</option>
+                  <option value="VIEW_CONFIG">View Config</option>
+                  <option value="UPDATE_CONFIG">Update Config</option>
+                  <option value="VIEW_WARNINGS">View Warnings</option>
+                  <option value="DELETE_WARNING">Delete Warning</option>
+                  <option value="UPDATE_AUTOMOD">Update AutoMod</option>
+                  <option value="EXECUTE_BULK_ACTION">Bulk Action</option>
+                  <option value="CREATE_BACKUP">Create Backup</option>
+                  <option value="DELETE_BACKUP">Delete Backup</option>
+                  <option value="VIEW_ANALYTICS">View Analytics</option>
+                  <option value="VIEW_APPEALS">View Appeals</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2 text-zinc-300">Status</label>
+                <select
+                  id="audit-filter-success"
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                >
+                  <option value="">All Status</option>
+                  <option value="true">Success Only</option>
+                  <option value="false">Failed Only</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2 text-zinc-300">Start Date</label>
+                <input
+                  type="datetime-local"
+                  id="audit-filter-start"
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-2 text-zinc-300">End Date</label>
+                <input
+                  type="datetime-local"
+                  id="audit-filter-end"
+                  class="w-full bg-zinc-700 border border-zinc-600 rounded px-4 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                />
+              </div>
             </div>
-            <div class="flex items-end">
+
+            <div class="flex gap-2">
               <button
                 onclick="loadDashboardAudit()"
-                class="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm transition"
+                class="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded text-sm transition flex items-center gap-2"
               >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
                 Apply Filters
+              </button>
+              <button
+                onclick="clearAuditFilters()"
+                class="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded text-sm transition"
+              >
+                Clear
               </button>
             </div>
           </div>
 
-          <div class="bg-zinc-900 rounded-lg p-4 mb-6">
-            <h3 class="font-semibold mb-3">Action Summary</h3>
-            <div id="audit-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div class="text-center text-zinc-500">Loading...</div>
+          <div class="p-6 bg-zinc-900/50 border-b border-zinc-700">
+            <h3 class="font-semibold mb-4 text-white">Summary</h3>
+            <div id="audit-summary" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+              <div class="loading-skeleton h-20 rounded"></div>
+              <div class="loading-skeleton h-20 rounded"></div>
+              <div class="loading-skeleton h-20 rounded"></div>
+              <div class="loading-skeleton h-20 rounded"></div>
+              <div class="loading-skeleton h-20 rounded"></div>
+            </div>
+            <div id="audit-stats" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div class="loading-skeleton h-16 rounded"></div>
+              <div class="loading-skeleton h-16 rounded"></div>
+              <div class="loading-skeleton h-16 rounded"></div>
+              <div class="loading-skeleton h-16 rounded"></div>
             </div>
           </div>
 
-          <div class="overflow-x-auto">
-            <table class="w-full">
-              <thead class="bg-zinc-900">
-                <tr>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Time</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">User</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Action</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Guild</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">IP Address</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Status</th>
-                </tr>
-              </thead>
-              <tbody id="audit-logs-tbody" class="divide-y divide-zinc-700">
-                <tr><td colspan="6" class="px-6 py-8 text-center text-zinc-400">Loading...</td></tr>
-              </tbody>
-            </table>
+          <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div id="audit-pagination-info" class="text-sm text-zinc-400">
+                Loading...
+              </div>
+              <div id="audit-pagination-controls" class="flex gap-2">
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-zinc-900/50">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Time</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">User</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Action</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Guild</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">IP Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider">Details</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-logs-tbody" class="divide-y divide-zinc-700">
+                  <tr><td colspan="7" class="px-6 py-8 text-center text-zinc-400">
+                    <div class="loading-skeleton h-8 w-48 mx-auto rounded"></div>
+                  </td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       `;
     }
 
-    async function loadDashboardAudit() {
+    let currentAuditPage = 0;
+    const auditPageSize = 50;
+
+    async function loadDashboardAudit(page = 0) {
       try {
-        const userId = document.getElementById('audit-filter-user')?.value || '';
+        currentAuditPage = page;
+        const search = document.getElementById('audit-filter-search')?.value || '';
         const actionType = document.getElementById('audit-filter-action')?.value || '';
+        const success = document.getElementById('audit-filter-success')?.value || '';
+        const startDate = document.getElementById('audit-filter-start')?.value || '';
+        const endDate = document.getElementById('audit-filter-end')?.value || '';
 
         const params = new URLSearchParams();
-        if (userId) params.append('userId', userId);
+        if (search) params.append('search', search);
         if (actionType) params.append('actionType', actionType);
-        params.append('limit', '100');
+        if (success) params.append('success', success);
+        if (startDate) params.append('startDate', Math.floor(new Date(startDate).getTime() / 1000).toString());
+        if (endDate) params.append('endDate', Math.floor(new Date(endDate).getTime() / 1000).toString());
+        params.append('limit', auditPageSize.toString());
+        params.append('offset', (page * auditPageSize).toString());
 
-        const [logsRes, statsRes] = await Promise.all([
+        const summaryParams = new URLSearchParams();
+        if (startDate) summaryParams.append('startDate', Math.floor(new Date(startDate).getTime() / 1000).toString());
+        if (endDate) summaryParams.append('endDate', Math.floor(new Date(endDate).getTime() / 1000).toString());
+
+        const [logsRes, statsRes, summaryRes] = await Promise.all([
           fetch(`/api/dashboard-audit?${params.toString()}`, { credentials: 'include' }),
-          fetch(`/api/dashboard-audit/stats`, { credentials: 'include' })
+          fetch(`/api/dashboard-audit/stats?${summaryParams.toString()}`, { credentials: 'include' }),
+          fetch(`/api/dashboard-audit/summary?${summaryParams.toString()}`, { credentials: 'include' })
         ]);
 
         const logsResult = await logsRes.json();
         const statsResult = await statsRes.json();
+        const summaryResult = await summaryRes.json();
+
+        if (summaryResult.success && summaryResult.data) {
+          const summary = summaryResult.data;
+          const successRate = summary.total_actions > 0
+            ? ((summary.successful_actions / summary.total_actions) * 100).toFixed(1)
+            : 0;
+
+          const summaryHtml = `
+            <div class="bg-zinc-800 rounded-lg p-4 text-center">
+              <div class="text-3xl font-bold text-white mb-1">${summary.total_actions || 0}</div>
+              <div class="text-xs text-zinc-400 uppercase tracking-wide">Total Actions</div>
+            </div>
+            <div class="bg-zinc-800 rounded-lg p-4 text-center">
+              <div class="text-3xl font-bold text-green-400 mb-1">${summary.successful_actions || 0}</div>
+              <div class="text-xs text-zinc-400 uppercase tracking-wide">Successful</div>
+            </div>
+            <div class="bg-zinc-800 rounded-lg p-4 text-center">
+              <div class="text-3xl font-bold text-red-400 mb-1">${summary.failed_actions || 0}</div>
+              <div class="text-xs text-zinc-400 uppercase tracking-wide">Failed</div>
+            </div>
+            <div class="bg-zinc-800 rounded-lg p-4 text-center">
+              <div class="text-3xl font-bold text-blue-400 mb-1">${summary.unique_users || 0}</div>
+              <div class="text-xs text-zinc-400 uppercase tracking-wide">Unique Users</div>
+            </div>
+            <div class="bg-zinc-800 rounded-lg p-4 text-center">
+              <div class="text-3xl font-bold text-indigo-400 mb-1">${successRate}%</div>
+              <div class="text-xs text-zinc-400 uppercase tracking-wide">Success Rate</div>
+            </div>
+          `;
+          document.getElementById('audit-summary').innerHTML = summaryHtml;
+        }
 
         if (statsResult.success) {
-          const statsHtml = statsResult.data.slice(0, 4).map(stat => `
-            <div class="text-center">
-              <div class="text-2xl font-bold text-blue-400">${stat.count}</div>
-              <div class="text-xs text-zinc-500">${stat.action_type.replace(/_/g, ' ')}</div>
-            </div>
-          `).join('');
-          document.getElementById('audit-stats').innerHTML = statsHtml || '<div class="text-zinc-500">No data</div>';
+          const statsHtml = statsResult.data.slice(0, 6).map(stat => {
+            const actionColor = getActionColor(stat.action_type);
+            return `
+              <div class="bg-zinc-800 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs ${actionColor.split(' ')[1]} font-medium">${stat.action_type.replace(/_/g, ' ')}</span>
+                  <span class="text-lg font-bold text-white">${stat.count}</span>
+                </div>
+                <div class="flex gap-2 text-xs">
+                  <span class="text-green-400">✓ ${stat.successful}</span>
+                  <span class="text-red-400">✗ ${stat.failed}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+          document.getElementById('audit-stats').innerHTML = statsHtml || '<div class="col-span-6 text-center text-zinc-500">No data</div>';
         }
 
         if (logsResult.success) {
           const tbody = document.getElementById('audit-logs-tbody');
+
           if (logsResult.data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-zinc-400">No audit logs found</td></tr>';
+            tbody.innerHTML = `
+              <tr><td colspan="7" class="px-6 py-12 text-center">
+                <div class="text-zinc-500 mb-2">
+                  <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                </div>
+                <div class="text-zinc-400 font-medium">No audit logs found</div>
+                <div class="text-zinc-500 text-sm mt-1">Try adjusting your filters</div>
+              </td></tr>
+            `;
+            document.getElementById('audit-pagination-info').textContent = 'No results';
+            document.getElementById('audit-pagination-controls').innerHTML = '';
             return;
           }
 
-          const logsHtml = logsResult.data.map(log => `
-            <tr class="hover:bg-zinc-750">
-              <td class="px-6 py-4 text-sm text-zinc-400">
-                ${new Date(log.timestamp * 1000).toLocaleString()}
+          const logsHtml = logsResult.data.map((log, index) => `
+            <tr class="hover:bg-zinc-700/50 transition-colors audit-log-row" data-log-id="${log.id}">
+              <td class="px-6 py-4 text-sm text-zinc-300">
+                <div title="${new Date(log.timestamp * 1000).toLocaleString()}">${formatRelativeTime(log.timestamp)}</div>
+                <div class="text-xs text-zinc-500">${new Date(log.timestamp * 1000).toLocaleTimeString()}</div>
               </td>
               <td class="px-6 py-4 text-sm">
-                <div>${log.username}#${log.discriminator}</div>
-                <div class="text-xs text-zinc-500">${log.user_id}</div>
+                <div class="font-medium text-white">${log.username}${log.discriminator !== '0' ? '#' + log.discriminator : ''}</div>
+                <div class="text-xs text-zinc-500 font-mono">${log.user_id}</div>
               </td>
               <td class="px-6 py-4 text-sm">
-                <span class="px-2 py-1 text-xs rounded ${getActionColor(log.action_type)}">
-                  ${log.action_type.replace(/_/g, ' ')}
+                <span class="px-2 py-1 text-xs rounded font-medium ${getActionColor(log.action_type)}">
+                  ${getActionIcon(log.action_type)} ${log.action_type.replace(/_/g, ' ')}
                 </span>
               </td>
               <td class="px-6 py-4 text-sm text-zinc-400">
-                ${log.guild_name || 'N/A'}
+                ${log.guild_name ? `<div class="font-medium">${log.guild_name}</div><div class="text-xs text-zinc-500">${log.guild_id}</div>` : '<span class="text-zinc-600">N/A</span>'}
               </td>
-              <td class="px-6 py-4 text-sm text-zinc-500 font-mono text-xs">
-                ${log.ip_address || 'N/A'}
+              <td class="px-6 py-4 text-sm text-zinc-400 font-mono text-xs">
+                ${log.ip_address || '<span class="text-zinc-600">N/A</span>'}
               </td>
               <td class="px-6 py-4 text-sm">
-                ${log.success ? '<span class="text-green-400">✓</span>' : '<span class="text-red-400">✗</span>'}
+                ${log.success
+                  ? '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-900/30 text-green-400">✓ Success</span>'
+                  : '<span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-900/30 text-red-400">✗ Failed</span>'}
+              </td>
+              <td class="px-6 py-4 text-sm">
+                <button onclick="toggleAuditDetails(${index}, ${log.id})" class="text-indigo-400 hover:text-indigo-300 text-xs font-medium transition">
+                  View
+                </button>
+              </td>
+            </tr>
+            <tr id="audit-details-${index}" class="hidden audit-details-row bg-zinc-900/50">
+              <td colspan="7" class="px-6 py-4">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span class="text-zinc-400 font-medium">Resource:</span>
+                    <span class="text-white ml-2">${log.resource || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span class="text-zinc-400 font-medium">Method:</span>
+                    <span class="text-white ml-2">${log.method || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span class="text-zinc-400 font-medium">User Agent:</span>
+                    <span class="text-zinc-300 ml-2 text-xs font-mono">${log.user_agent || 'N/A'}</span>
+                  </div>
+                  ${log.error_message ? `
+                    <div class="col-span-2">
+                      <span class="text-red-400 font-medium">Error:</span>
+                      <span class="text-red-300 ml-2">${log.error_message}</span>
+                    </div>
+                  ` : ''}
+                  ${log.details ? `
+                    <div class="col-span-2">
+                      <span class="text-zinc-400 font-medium">Details:</span>
+                      <pre class="text-xs text-zinc-300 mt-2 bg-zinc-800 p-3 rounded overflow-auto max-h-40">${JSON.stringify(JSON.parse(log.details), null, 2)}</pre>
+                    </div>
+                  ` : ''}
+                </div>
               </td>
             </tr>
           `).join('');
 
           tbody.innerHTML = logsHtml;
+
+          const { total, offset, limit } = logsResult.pagination;
+          const start = offset + 1;
+          const end = Math.min(offset + logsResult.data.length, total);
+
+          document.getElementById('audit-pagination-info').textContent =
+            `Showing ${start}-${end} of ${total} results`;
+
+          const totalPages = Math.ceil(total / limit);
+          const currentPage = Math.floor(offset / limit);
+
+          let paginationHtml = '';
+          if (currentPage > 0) {
+            paginationHtml += `<button onclick="loadDashboardAudit(${currentPage - 1})" class="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-sm transition">← Previous</button>`;
+          }
+
+          const pageStart = Math.max(0, currentPage - 2);
+          const pageEnd = Math.min(totalPages, currentPage + 3);
+
+          for (let i = pageStart; i < pageEnd; i++) {
+            const isActive = i === currentPage;
+            paginationHtml += `
+              <button
+                onclick="loadDashboardAudit(${i})"
+                class="px-3 py-1 ${isActive ? 'bg-indigo-600' : 'bg-zinc-700 hover:bg-zinc-600'} rounded text-sm transition"
+              >
+                ${i + 1}
+              </button>
+            `;
+          }
+
+          if (currentPage < totalPages - 1) {
+            paginationHtml += `<button onclick="loadDashboardAudit(${currentPage + 1})" class="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-sm transition">Next →</button>`;
+          }
+
+          document.getElementById('audit-pagination-controls').innerHTML = paginationHtml;
         }
       } catch (error) {
         console.error('Failed to load dashboard audit:', error);
-        document.getElementById('audit-logs-tbody').innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-red-400">Failed to load audit logs</td></tr>';
+        document.getElementById('audit-logs-tbody').innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-red-400">Failed to load audit logs</td></tr>';
       }
     }
 
@@ -2256,10 +3284,445 @@
         UPDATE_CONFIG: 'bg-yellow-900/30 text-yellow-400',
         DELETE_WARNING: 'bg-red-900/30 text-red-400',
         EXECUTE_BULK_ACTION: 'bg-purple-900/30 text-purple-400',
-        CREATE_BACKUP: 'bg-cyan-900/30 text-cyan-400'
+        CREATE_BACKUP: 'bg-cyan-900/30 text-cyan-400',
+        DELETE_BACKUP: 'bg-orange-900/30 text-orange-400',
+        UPDATE_AUTOMOD: 'bg-amber-900/30 text-amber-400',
+        VIEW_CONFIG: 'bg-sky-900/30 text-sky-400',
+        VIEW_ANALYTICS: 'bg-indigo-900/30 text-indigo-400',
+        VIEW_WARNINGS: 'bg-slate-900/30 text-slate-400'
       };
 
       return colors[actionType] || 'bg-zinc-700 text-zinc-300';
+    }
+
+    function getActionIcon(actionType) {
+      const icons = {
+        LOGIN: '🔓',
+        LOGOUT: '🔒',
+        ACCESS_GUILD: '🏠',
+        UPDATE_CONFIG: '⚙️',
+        DELETE_WARNING: '🗑️',
+        EXECUTE_BULK_ACTION: '⚡',
+        CREATE_BACKUP: '💾',
+        DELETE_BACKUP: '🗑️',
+        UPDATE_AUTOMOD: '🛡️',
+        VIEW_CONFIG: '👁️',
+        VIEW_ANALYTICS: '📊',
+        VIEW_WARNINGS: '⚠️'
+      };
+      return icons[actionType] || '📋';
+    }
+
+    function formatRelativeTime(timestamp) {
+      const now = Math.floor(Date.now() / 1000);
+      const diff = now - timestamp;
+
+      if (diff < 60) return 'Just now';
+      if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+      if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+      if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+      return new Date(timestamp * 1000).toLocaleDateString();
+    }
+
+    function toggleAuditDetails(index, logId) {
+      const detailsRow = document.getElementById(`audit-details-${index}`);
+      if (detailsRow) {
+        detailsRow.classList.toggle('hidden');
+      }
+    }
+
+    function clearAuditFilters() {
+      document.getElementById('audit-filter-search').value = '';
+      document.getElementById('audit-filter-action').value = '';
+      document.getElementById('audit-filter-success').value = '';
+      document.getElementById('audit-filter-start').value = '';
+      document.getElementById('audit-filter-end').value = '';
+
+      document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-indigo-600');
+        btn.classList.add('bg-zinc-700');
+      });
+      document.querySelector('.quick-filter-btn[onclick*="all"]')?.classList.add('active', 'bg-indigo-600');
+      document.querySelector('.quick-filter-btn[onclick*="all"]')?.classList.remove('bg-zinc-700');
+
+      loadDashboardAudit(0);
+    }
+
+    function setQuickFilter(range) {
+      const now = new Date();
+      let startDate;
+
+      switch(range) {
+        case '1h':
+          startDate = new Date(now.getTime() - 3600000);
+          break;
+        case '24h':
+          startDate = new Date(now.getTime() - 86400000);
+          break;
+        case '7d':
+          startDate = new Date(now.getTime() - 604800000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 2592000000);
+          break;
+        case 'all':
+          document.getElementById('audit-filter-start').value = '';
+          document.getElementById('audit-filter-end').value = '';
+          break;
+      }
+
+      if (range !== 'all') {
+        const startStr = startDate.toISOString().slice(0, 16);
+        const endStr = now.toISOString().slice(0, 16);
+        document.getElementById('audit-filter-start').value = startStr;
+        document.getElementById('audit-filter-end').value = endStr;
+      }
+
+      document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-indigo-600');
+        btn.classList.add('bg-zinc-700');
+      });
+
+      event.target.classList.add('active', 'bg-indigo-600');
+      event.target.classList.remove('bg-zinc-700');
+
+      loadDashboardAudit(0);
+    }
+
+    function initAuditQuickFilters() {
+      document.getElementById('audit-filter-search')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          loadDashboardAudit(0);
+        }
+      });
+    }
+
+    function exportAuditLogs(format) {
+      const search = document.getElementById('audit-filter-search')?.value || '';
+      const actionType = document.getElementById('audit-filter-action')?.value || '';
+      const success = document.getElementById('audit-filter-success')?.value || '';
+      const startDate = document.getElementById('audit-filter-start')?.value || '';
+      const endDate = document.getElementById('audit-filter-end')?.value || '';
+
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (actionType) params.append('actionType', actionType);
+      if (success) params.append('success', success);
+      if (startDate) params.append('startDate', Math.floor(new Date(startDate).getTime() / 1000).toString());
+      if (endDate) params.append('endDate', Math.floor(new Date(endDate).getTime() / 1000).toString());
+      params.append('format', format);
+
+      window.open(`/api/dashboard-audit/export?${params.toString()}`, '_blank');
+    }
+
+    function renderAccountSettingsPage() {
+      return `
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg">
+              <div class="p-6 border-b border-zinc-700">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                  <svg class="w-6 h-6 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                  </svg>
+                  Profile & Preferences
+                </h2>
+                <p class="text-zinc-400 text-sm mt-1">Manage your account settings and preferences</p>
+              </div>
+
+              <div class="p-6 space-y-6">
+                <div>
+                  <label class="block text-sm font-medium text-zinc-300 mb-2">Session Timeout</label>
+                  <select id="setting-session-timeout" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+                    <option value="3600">1 Hour</option>
+                    <option value="28800">8 Hours</option>
+                    <option value="86400">24 Hours</option>
+                    <option value="604800">7 Days</option>
+                    <option value="2592000">30 Days</option>
+                  </select>
+                  <p class="text-xs text-zinc-500 mt-2">Automatically log out after this period of inactivity</p>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-zinc-300 mb-2">Theme</label>
+                  <select id="setting-theme" class="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-4 py-2 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                    <option value="auto">Auto (System)</option>
+                  </select>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                  <button onclick="saveUserSettings()" class="btn-primary flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Save Changes
+                  </button>
+                  <button onclick="loadUserSettings()" class="btn-secondary">Reset</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg">
+              <div class="p-6 border-b border-zinc-700">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                  <svg class="w-6 h-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                  </svg>
+                  Security
+                </h2>
+                <p class="text-zinc-400 text-sm mt-1">Manage your account security settings</p>
+              </div>
+
+              <div class="p-6 space-y-6">
+                <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+                  <div class="flex items-start gap-3">
+                    <svg class="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div class="text-sm text-blue-200">
+                      <strong class="font-semibold">Two-Factor Authentication</strong> is coming soon! This will add an extra layer of security to your account.
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <button onclick="terminateAllSessions()" class="w-full bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 text-red-400 px-4 py-3 rounded-lg transition flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    Terminate All Sessions
+                  </button>
+                  <p class="text-xs text-zinc-500 mt-2">Log out from all devices except this one</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <div class="bg-zinc-800 border border-zinc-700 rounded-lg">
+              <div class="p-6 border-b border-zinc-700">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                  <svg class="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                  </svg>
+                  Active Sessions
+                </h2>
+                <p class="text-zinc-400 text-sm mt-1">Manage your active login sessions</p>
+              </div>
+
+              <div id="active-sessions-list" class="p-6 space-y-3">
+                <div class="text-center py-8 text-zinc-500">
+                  <div class="loading-skeleton h-20 rounded mb-3"></div>
+                  <div class="loading-skeleton h-20 rounded"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadUserSettings() {
+      try {
+        const response = await fetch('/api/user/settings', { credentials: 'include' });
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          const settings = result.data;
+          document.getElementById('setting-session-timeout').value = settings.session_timeout || 86400;
+          document.getElementById('setting-theme').value = settings.theme || 'dark';
+        }
+      } catch (error) {
+        console.error('Failed to load user settings:', error);
+      }
+    }
+
+    async function saveUserSettings() {
+      try {
+        const settings = {
+          session_timeout: parseInt(document.getElementById('setting-session-timeout').value),
+          theme: document.getElementById('setting-theme').value
+        };
+
+        const response = await fetch('/api/user/settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(settings)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showNotification('Settings saved successfully!', 'success');
+        } else {
+          showNotification('Failed to save settings', 'error');
+        }
+      } catch (error) {
+        console.error('Failed to save user settings:', error);
+        showNotification('Failed to save settings', 'error');
+      }
+    }
+
+    async function loadUserSessions() {
+      try {
+        const response = await fetch('/api/user/sessions', { credentials: 'include' });
+        const result = await response.json();
+
+        const container = document.getElementById('active-sessions-list');
+
+        if (result.success && result.data && result.data.length > 0) {
+          const sessionsHtml = result.data.map(session => {
+            const createdDate = new Date(session.created_at * 1000);
+            const lastActivity = new Date(session.last_activity * 1000);
+
+            return `
+              <div class="bg-zinc-900/50 border border-zinc-700 rounded-lg p-4">
+                <div class="flex items-start justify-between mb-2">
+                  <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <span class="text-xs font-semibold text-green-400">Active</span>
+                  </div>
+                  <button onclick="terminateSession('${session.session_id}')" class="text-red-400 hover:text-red-300 text-xs font-medium">
+                    Terminate
+                  </button>
+                </div>
+                <div class="space-y-1 text-xs text-zinc-400">
+                  <div class="flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    <span class="font-mono">${session.ip_address || 'Unknown'}</span>
+                  </div>
+                  <div class="truncate" title="${session.user_agent}">
+                    ${session.user_agent || 'Unknown device'}
+                  </div>
+                  <div class="flex items-center gap-2 text-zinc-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Created ${formatRelativeTime(session.created_at)}</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-zinc-500">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <span>Last active ${formatRelativeTime(session.last_activity)}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          container.innerHTML = sessionsHtml;
+        } else {
+          container.innerHTML = `
+            <div class="text-center py-8 text-zinc-500">
+              <svg class="w-12 h-12 mx-auto mb-3 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+              <p class="text-sm">No active sessions</p>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Failed to load sessions:', error);
+      }
+    }
+
+    async function terminateSession(sessionId) {
+      if (!confirm('Are you sure you want to terminate this session?')) return;
+
+      try {
+        const response = await fetch(`/api/user/sessions/${sessionId}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showNotification('Session terminated successfully', 'success');
+          loadUserSessions();
+        } else {
+          showNotification('Failed to terminate session', 'error');
+        }
+      } catch (error) {
+        console.error('Failed to terminate session:', error);
+        showNotification('Failed to terminate session', 'error');
+      }
+    }
+
+    async function terminateAllSessions() {
+      if (!confirm('Are you sure you want to terminate ALL sessions? You will remain logged in on this device.')) return;
+
+      try {
+        const response = await fetch('/api/user/sessions', {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showNotification('All sessions terminated successfully', 'success');
+          loadUserSessions();
+        } else {
+          showNotification('Failed to terminate sessions', 'error');
+        }
+      } catch (error) {
+        console.error('Failed to terminate all sessions:', error);
+        showNotification('Failed to terminate sessions', 'error');
+      }
+    }
+
+    function showNotification(message, type = 'info') {
+      const notificationContainer = document.getElementById('notification-container') || createNotificationContainer();
+
+      const notification = document.createElement('div');
+      notification.className = `notification ${type} animate-slide-in`;
+
+      const colors = {
+        success: 'bg-green-600',
+        error: 'bg-red-600',
+        info: 'bg-blue-600',
+        warning: 'bg-yellow-600'
+      };
+
+      const icons = {
+        success: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
+        error: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
+        info: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+        warning: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
+      };
+
+      notification.innerHTML = `
+        <div class="${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]">
+          ${icons[type]}
+          <span class="font-medium">${message}</span>
+        </div>
+      `;
+
+      notificationContainer.appendChild(notification);
+
+      setTimeout(() => {
+        notification.classList.add('animate-slide-out');
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
+    }
+
+    function createNotificationContainer() {
+      const container = document.createElement('div');
+      container.id = 'notification-container';
+      container.className = 'fixed top-4 right-4 z-50 space-y-2';
+      document.body.appendChild(container);
+      return container;
     }
 
     function filterWarnings(searchTerm) {

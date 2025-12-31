@@ -4,7 +4,7 @@ import { logger } from './logger.js';
 
 export class TempbanChecker {
   private client: Client;
-  private interval: Timer | null = null;
+  private interval: NodeJS.Timeout | null = null;
 
   constructor(client: Client) {
     this.client = client;

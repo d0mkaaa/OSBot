@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS guilds (
     antiraid_join_threshold INTEGER DEFAULT 5,
     antiraid_join_window INTEGER DEFAULT 10,
     antiraid_action TEXT DEFAULT 'kick',
+    raid_lockdown_active BOOLEAN DEFAULT 0,
+    raid_lockdown_started_at INTEGER,
+    raid_lockdown_verification_channel_id TEXT,
     warning_threshold_enabled BOOLEAN DEFAULT 0,
     warning_threshold_count INTEGER DEFAULT 3,
     warning_threshold_action TEXT DEFAULT 'mute',
@@ -43,6 +46,13 @@ CREATE TABLE IF NOT EXISTS guilds (
     log_role_events BOOLEAN DEFAULT 0,
     log_ban_events BOOLEAN DEFAULT 0,
     log_invite_events BOOLEAN DEFAULT 0,
+    tickets_enabled BOOLEAN DEFAULT 1,
+    warnings_enabled BOOLEAN DEFAULT 1,
+    analytics_enabled BOOLEAN DEFAULT 0,
+    moderation_enabled BOOLEAN DEFAULT 1,
+    automod_enabled BOOLEAN DEFAULT 1,
+    leveling_enabled BOOLEAN DEFAULT 1,
+    music_enabled BOOLEAN DEFAULT 1,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
@@ -66,6 +76,9 @@ CREATE TABLE IF NOT EXISTS guild_members (
     xp INTEGER DEFAULT 0,
     messages INTEGER DEFAULT 0,
     warnings INTEGER DEFAULT 0,
+    card_bg_color TEXT DEFAULT '#5865F2',
+    card_accent_color TEXT DEFAULT '#FFFFFF',
+    card_bg_image TEXT,
     joined_at INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
@@ -166,20 +179,36 @@ CREATE TABLE IF NOT EXISTS automod_settings (
     spam_enabled BOOLEAN DEFAULT 0,
     spam_threshold INTEGER DEFAULT 5,
     spam_interval INTEGER DEFAULT 5,
+    spam_similarity_enabled BOOLEAN DEFAULT 0,
+    spam_similarity_threshold INTEGER DEFAULT 80,
     links_enabled BOOLEAN DEFAULT 0,
     links_whitelist TEXT,
     caps_enabled BOOLEAN DEFAULT 0,
     caps_threshold INTEGER DEFAULT 70,
+    caps_min_length INTEGER DEFAULT 10,
     mentions_enabled BOOLEAN DEFAULT 0,
     mentions_threshold INTEGER DEFAULT 5,
     profanity_enabled BOOLEAN DEFAULT 0,
     profanity_list TEXT,
+    profanity_preset TEXT DEFAULT 'moderate',
+    profanity_use_word_boundaries BOOLEAN DEFAULT 1,
     invites_enabled BOOLEAN DEFAULT 0,
     invites_allow_own BOOLEAN DEFAULT 1,
+    invites_allowlist TEXT,
     action TEXT DEFAULT 'warn',
     violations_threshold INTEGER DEFAULT 3,
     violations_action TEXT DEFAULT 'timeout',
     violations_duration INTEGER DEFAULT 300,
+    exempt_roles TEXT,
+    exempt_channels TEXT,
+    phishing_enabled BOOLEAN DEFAULT 0,
+    phishing_action TEXT DEFAULT 'warn',
+    account_age_enabled BOOLEAN DEFAULT 0,
+    account_age_min_days INTEGER DEFAULT 7,
+    account_age_action TEXT DEFAULT 'kick',
+    alt_detection_enabled BOOLEAN DEFAULT 0,
+    alt_detection_sensitivity INTEGER DEFAULT 3,
+    alt_detection_action TEXT DEFAULT 'warn',
     FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
 );
 
@@ -204,6 +233,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     closed_at INTEGER,
     closed_by TEXT,
+    transcript TEXT,
     FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
 );
 
@@ -464,3 +494,118 @@ CREATE INDEX IF NOT EXISTS idx_dashboard_audit_guild ON dashboard_audit(guild_id
 CREATE INDEX IF NOT EXISTS idx_dashboard_audit_action ON dashboard_audit(action_type);
 CREATE INDEX IF NOT EXISTS idx_dashboard_audit_timestamp ON dashboard_audit(timestamp);
 CREATE INDEX IF NOT EXISTS idx_dashboard_audit_user_guild ON dashboard_audit(user_id, guild_id);
+
+CREATE TABLE IF NOT EXISTS dashboard_user_settings (
+  user_id TEXT PRIMARY KEY,
+  username TEXT NOT NULL,
+  discriminator TEXT NOT NULL,
+  email_notifications BOOLEAN DEFAULT 1,
+  security_alerts BOOLEAN DEFAULT 1,
+  two_factor_enabled BOOLEAN DEFAULT 0,
+  two_factor_secret TEXT,
+  session_timeout INTEGER DEFAULT 86400,
+  theme TEXT DEFAULT 'dark',
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_sessions (
+  session_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  last_activity INTEGER DEFAULT (strftime('%s', 'now')),
+  expires_at INTEGER NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES dashboard_user_settings(user_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_dashboard_sessions_user ON dashboard_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_dashboard_sessions_expires ON dashboard_sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS automod_custom_filters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    action TEXT DEFAULT 'warn',
+    enabled BOOLEAN DEFAULT 1,
+    created_by TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
+    UNIQUE(guild_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS xp_boosters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    multiplier REAL NOT NULL DEFAULT 1.5,
+    created_by TEXT NOT NULL,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
+    UNIQUE(guild_id, type, target_id)
+);
+
+CREATE TABLE IF NOT EXISTS alt_detection_scores (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guild_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    score INTEGER NOT NULL DEFAULT 0,
+    flags TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE,
+    UNIQUE(guild_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_automod_custom_filters_guild ON automod_custom_filters(guild_id);
+CREATE INDEX IF NOT EXISTS idx_xp_boosters_guild ON xp_boosters(guild_id);
+CREATE INDEX IF NOT EXISTS idx_xp_boosters_target ON xp_boosters(guild_id, type, target_id);
+CREATE INDEX IF NOT EXISTS idx_alt_detection_scores_guild ON alt_detection_scores(guild_id);
+CREATE INDEX IF NOT EXISTS idx_alt_detection_scores_user ON alt_detection_scores(guild_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_alt_detection_scores_score ON alt_detection_scores(guild_id, score);
+
+CREATE TABLE IF NOT EXISTS music_settings (
+    guild_id TEXT PRIMARY KEY,
+    dj_role_id TEXT,
+    volume INTEGER DEFAULT 50,
+    loop_mode TEXT DEFAULT 'off',
+    auto_leave BOOLEAN DEFAULT 1,
+    auto_leave_timeout INTEGER DEFAULT 300,
+    twentyfour_seven BOOLEAN DEFAULT 0,
+    vote_skip_enabled BOOLEAN DEFAULT 1,
+    vote_skip_threshold INTEGER DEFAULT 50,
+    max_queue_size INTEGER DEFAULT 100,
+    max_track_duration INTEGER DEFAULT 3600,
+    auto_delete_files BOOLEAN DEFAULT 1,
+    auto_delete_delay INTEGER DEFAULT 30,
+    enabled BOOLEAN DEFAULT 1,
+    FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_music_settings_guild ON music_settings(guild_id);
+
+CREATE TABLE IF NOT EXISTS music_queues (
+    guild_id TEXT PRIMARY KEY,
+    tracks TEXT NOT NULL,
+    current_track TEXT,
+    volume INTEGER DEFAULT 100,
+    loop_mode TEXT DEFAULT 'off',
+    is_playing BOOLEAN DEFAULT 0,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_music_queues_guild ON music_queues(guild_id);
+
+CREATE TABLE IF NOT EXISTS command_restrictions (
+    guild_id TEXT PRIMARY KEY,
+    enabled BOOLEAN DEFAULT 0,
+    blacklisted_channels TEXT,
+    exception_roles TEXT,
+    exception_permissions TEXT,
+    FOREIGN KEY (guild_id) REFERENCES guilds(guild_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_command_restrictions_guild ON command_restrictions(guild_id);

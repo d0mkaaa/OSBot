@@ -8,7 +8,11 @@ import { DatabaseManager } from '../database/Database.js';
 import { TempbanChecker } from '../utils/tempban-checker.js';
 import { BackupManager } from '../utils/backup-manager.js';
 import { HealthMonitor } from '../utils/health-monitor.js';
+import { MusicManager } from '../music/MusicManager.js';
 import { env } from '../config/environment.js';
+import { stopAfkCleanup } from '../events/messageCreate.js';
+import { stopAutomodCleanup } from '../utils/automod.js';
+import { AnalyticsTracker } from '../utils/analytics-tracker.js';
 
 export class Bot extends Client<true> {
   public commands: Collection<string, Command>;
@@ -16,6 +20,7 @@ export class Bot extends Client<true> {
   private tempbanChecker: TempbanChecker;
   private backupManager: BackupManager;
   private healthMonitor: HealthMonitor;
+  private musicManager: MusicManager;
 
   constructor() {
     super({
@@ -27,6 +32,7 @@ export class Bot extends Client<true> {
     this.tempbanChecker = new TempbanChecker(this);
     this.backupManager = BackupManager.getInstance();
     this.healthMonitor = HealthMonitor.getInstance();
+    this.musicManager = MusicManager.getInstance();
   }
 
   async initialize(): Promise<void> {
@@ -40,6 +46,18 @@ export class Bot extends Client<true> {
       await this.initialize();
       await this.login(token);
       this.tempbanChecker.start();
+
+      const guildsWithMusic = this.guilds.cache.filter(guild => {
+        const guildConfig = this.database.getGuild(guild.id) as any;
+        return guildConfig?.music_enabled === 1;
+      });
+
+      if (guildsWithMusic.size > 0) {
+        await this.musicManager.initialize();
+        logger.info(`Music system initialized for ${guildsWithMusic.size} guild(s)`);
+      } else {
+        logger.info('Music system disabled - no guilds have music enabled');
+      }
 
       this.healthMonitor.initialize(this);
       if (env.healthCheckEnabled) {
@@ -60,6 +78,9 @@ export class Bot extends Client<true> {
     this.tempbanChecker.stop();
     this.healthMonitor.stopMonitoring();
     this.backupManager.stopAutoBackup();
+    stopAfkCleanup();
+    stopAutomodCleanup();
+    AnalyticsTracker.getInstance().shutdown();
     this.database.close();
     await this.destroy();
     process.exit(0);

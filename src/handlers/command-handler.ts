@@ -1,6 +1,6 @@
 import { readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { BotClient, Command } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -17,7 +17,8 @@ async function loadCommandsFromDirectory(client: BotClient, directory: string): 
     if (stat.isDirectory()) {
       await loadCommandsFromDirectory(client, entryPath);
     } else if (entry.endsWith('.ts') || entry.endsWith('.js')) {
-      const commandModule = await import(entryPath);
+      const fileURL = pathToFileURL(entryPath).href;
+      const commandModule = await import(fileURL);
       const command: Command = commandModule.default;
 
       if ('data' in command && 'execute' in command) {

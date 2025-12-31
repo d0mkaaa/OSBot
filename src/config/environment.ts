@@ -22,7 +22,7 @@ function getSessionSecret(): string {
     if (isProd) {
       throw new Error('DASHBOARD_SESSION_SECRET must be at least 32 characters long in production');
     }
-    console.warn('⚠️  WARNING: DASHBOARD_SESSION_SECRET is too short (should be at least 32 characters)');
+    console.warn('WARNING: DASHBOARD_SESSION_SECRET is too short (should be at least 32 characters)');
   }
 
   return secret;
@@ -77,11 +77,11 @@ export function validateEnvironment(): void {
     }
 
     if (env.dashboardEnabled && env.dashboardUrl.includes('localhost')) {
-      console.warn('⚠️  WARNING: DASHBOARD_URL contains localhost in production environment');
+      console.warn('WARNING: DASHBOARD_URL contains localhost in production environment');
     }
 
     if (!env.botOwners) {
-      console.warn('⚠️  WARNING: BOT_OWNERS is not set - owner-only commands will be unavailable');
+      console.warn('WARNING: BOT_OWNERS is not set - owner-only commands will be unavailable');
     }
   }
 
@@ -89,8 +89,8 @@ export function validateEnvironment(): void {
     throw new Error(`Environment validation failed:\n${errors.map(e => `  - ${e}`).join('\n')}`);
   }
 
-  console.log(`🚀 Starting bot in ${env.environment.toUpperCase()} mode`);
+  console.log(`Starting bot in ${env.environment.toUpperCase()} mode`);
   if (env.dashboardEnabled) {
-    console.log(`📊 Dashboard enabled at ${env.dashboardUrl}`);
+    console.log(`Dashboard enabled at ${env.dashboardUrl}`);
   }
 }

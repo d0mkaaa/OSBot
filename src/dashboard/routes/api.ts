@@ -3,6 +3,7 @@ import { DatabaseManager } from '../../database/Database.js';
 import { isAuthenticated, hasGuildAccess } from '../middleware/auth-check.js';
 import { validateGuildConfig, validateAutomod, validateRule } from '../middleware/validate-input.js';
 import { strictRateLimit, moderateRateLimit, relaxedRateLimit, perGuildRateLimit } from '../middleware/rate-limit.js';
+import { requireTicketsEnabled, requireModerationEnabled } from '../middleware/module-check.js';
 import { logger } from '../../utils/logger.js';
 import { getSupportedLocales } from '../../utils/locale-manager.js';
 import { HealthMonitor } from '../../utils/health-monitor.js';
@@ -46,11 +47,17 @@ router.get('/guilds/:guildId', isAuthenticated, hasGuildAccess, async (req, res)
 
 router.get('/guilds/:guildId/users/:userId', isAuthenticated, hasGuildAccess, async (req, res) => {
   try {
+    const { userId } = req.params;
+
+    if (!userId || userId === 'null' || userId === 'undefined') {
+      return res.status(400).json({ success: false, error: 'Invalid user ID' });
+    }
+
     const client = (req as any).app.get('discordClient');
     const guild = await client.guilds.fetch(req.params.guildId);
 
     try {
-      const member = await guild.members.fetch(req.params.userId);
+      const member = await guild.members.fetch(userId);
       res.json({
         success: true,
         data: {
@@ -120,7 +127,7 @@ router.patch('/guilds/:guildId/config', isAuthenticated, hasGuildAccess, strictR
   }
 });
 
-router.get('/guilds/:guildId/tickets', isAuthenticated, hasGuildAccess, (req, res) => {
+router.get('/guilds/:guildId/tickets', isAuthenticated, hasGuildAccess, requireTicketsEnabled, (req, res) => {
   try {
     const tickets = db.getAllTickets(req.params.guildId);
     res.json({ success: true, data: tickets });
@@ -130,7 +137,7 @@ router.get('/guilds/:guildId/tickets', isAuthenticated, hasGuildAccess, (req, re
   }
 });
 
-router.get('/guilds/:guildId/tickets/:ticketId/transcript', isAuthenticated, hasGuildAccess, async (req, res) => {
+router.get('/guilds/:guildId/tickets/:ticketId/transcript', isAuthenticated, hasGuildAccess, requireTicketsEnabled, async (req, res) => {
   try {
     const client = (req as any).app.get('discordClient');
     const ticket = db.getTicketById(parseInt(req.params.ticketId)) as any;
@@ -139,13 +146,24 @@ router.get('/guilds/:guildId/tickets/:ticketId/transcript', isAuthenticated, has
       return res.status(404).json({ success: false, error: 'Ticket not found' });
     }
 
+    logger.info(`Fetching transcript for ticket #${req.params.ticketId} - Status: ${ticket.status}, Has transcript: ${!!ticket.transcript}`);
+
     if (ticket.status === 'closed' && ticket.transcript) {
       try {
         const transcriptData = JSON.parse(ticket.transcript);
+        logger.info(`Returning transcript from database for ticket #${req.params.ticketId}`);
         return res.json({ success: true, data: transcriptData, source: 'database' });
       } catch (parseError) {
         logger.error('Failed to parse stored transcript:', parseError);
       }
+    }
+
+    if (ticket.status === 'closed' && !ticket.transcript) {
+      logger.warn(`Ticket #${req.params.ticketId} is closed but has no transcript stored`);
+      return res.status(404).json({
+        success: false,
+        error: 'Ticket transcript not available. The ticket was closed but no transcript was saved.'
+      });
     }
 
     try {
@@ -178,6 +196,7 @@ router.get('/guilds/:guildId/tickets/:ticketId/transcript', isAuthenticated, has
         }))
       }));
 
+      logger.info(`Returning transcript from channel for ticket #${req.params.ticketId}`);
       res.json({ success: true, data: transcript, source: 'channel' });
     } catch (channelError) {
       logger.error('Failed to fetch ticket channel:', channelError);
@@ -189,7 +208,7 @@ router.get('/guilds/:guildId/tickets/:ticketId/transcript', isAuthenticated, has
   }
 });
 
-router.delete('/guilds/:guildId/tickets/:ticketId', isAuthenticated, hasGuildAccess, (req, res) => {
+router.delete('/guilds/:guildId/tickets/:ticketId', isAuthenticated, hasGuildAccess, requireTicketsEnabled, (req, res) => {
   try {
     db.closeTicket(req.params.ticketId, 'dashboard_user');
     res.json({ success: true });
@@ -199,7 +218,7 @@ router.delete('/guilds/:guildId/tickets/:ticketId', isAuthenticated, hasGuildAcc
   }
 });
 
-router.get('/guilds/:guildId/warnings', isAuthenticated, hasGuildAccess, (req, res) => {
+router.get('/guilds/:guildId/warnings', isAuthenticated, hasGuildAccess, requireModerationEnabled, (req, res) => {
   try {
     let warnings = db.getAllWarnings(req.params.guildId);
 
@@ -229,7 +248,7 @@ router.get('/guilds/:guildId/warnings', isAuthenticated, hasGuildAccess, (req, r
   }
 });
 
-router.delete('/guilds/:guildId/warnings/:warningId', isAuthenticated, hasGuildAccess, strictRateLimit, (req, res) => {
+router.delete('/guilds/:guildId/warnings/:warningId', isAuthenticated, hasGuildAccess, requireModerationEnabled, strictRateLimit, (req, res) => {
   try {
     db.removeWarning(parseInt(req.params.warningId));
     res.json({ success: true });
@@ -334,7 +353,11 @@ router.get('/guilds/:guildId/automod', isAuthenticated, hasGuildAccess, relaxedR
 
 router.patch('/guilds/:guildId/automod', isAuthenticated, hasGuildAccess, strictRateLimit, validateAutomod, (req, res) => {
   try {
-    const success = db.updateAutomodSettings(req.params.guildId, req.body);
+    const data: any = {};
+    for (const [key, value] of Object.entries(req.body)) {
+      data[key] = typeof value === 'boolean' ? (value ? 1 : 0) : value;
+    }
+    const success = db.updateAutomodSettings(req.params.guildId, data);
     res.json({ success });
   } catch (error) {
     logger.error('Failed to update automod config:', error);
@@ -458,19 +481,33 @@ router.get('/docs/:docId', isAuthenticated, (req, res) => {
 router.get('/dashboard-audit', isAuthenticated, (req, res) => {
   try {
     const user = req.user as any;
-    const { userId, guildId, actionType, limit, offset, startDate, endDate } = req.query;
+    const { userId, guildId, actionType, search, success, limit, offset, startDate, endDate } = req.query;
 
-    const logs = db.getDashboardAuditLogs({
+    const options = {
       userId: userId as string,
       guildId: guildId as string,
       actionType: actionType as string,
+      search: search as string,
+      success: success === 'true' ? true : success === 'false' ? false : undefined,
       limit: limit ? parseInt(limit as string) : 100,
       offset: offset ? parseInt(offset as string) : 0,
       startDate: startDate ? parseInt(startDate as string) : undefined,
       endDate: endDate ? parseInt(endDate as string) : undefined
-    });
+    };
 
-    res.json({ success: true, data: logs });
+    const logs = db.getDashboardAuditLogs(options);
+    const total = db.getDashboardAuditCount(options);
+
+    res.json({
+      success: true,
+      data: logs,
+      pagination: {
+        total,
+        limit: options.limit,
+        offset: options.offset,
+        hasMore: options.offset + logs.length < total
+      }
+    });
   } catch (error) {
     logger.error('Failed to fetch dashboard audit logs:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch audit logs' });
@@ -479,17 +516,159 @@ router.get('/dashboard-audit', isAuthenticated, (req, res) => {
 
 router.get('/dashboard-audit/stats', isAuthenticated, (req, res) => {
   try {
-    const { userId, guildId } = req.query;
+    const { userId, guildId, startDate, endDate } = req.query;
 
-    const stats = db.getDashboardAuditStats(
-      userId as string | undefined,
-      guildId as string | undefined
-    );
+    const stats = db.getDashboardAuditStats({
+      userId: userId as string | undefined,
+      guildId: guildId as string | undefined,
+      startDate: startDate ? parseInt(startDate as string) : undefined,
+      endDate: endDate ? parseInt(endDate as string) : undefined
+    });
 
     res.json({ success: true, data: stats });
   } catch (error) {
     logger.error('Failed to fetch dashboard audit stats:', error);
     res.status(500).json({ success: false, error: 'Failed to fetch stats' });
+  }
+});
+
+router.get('/dashboard-audit/summary', isAuthenticated, (req, res) => {
+  try {
+    const { userId, guildId, startDate, endDate } = req.query;
+
+    const summary = db.getDashboardAuditSummary({
+      userId: userId as string | undefined,
+      guildId: guildId as string | undefined,
+      startDate: startDate ? parseInt(startDate as string) : undefined,
+      endDate: endDate ? parseInt(endDate as string) : undefined
+    });
+
+    res.json({ success: true, data: summary });
+  } catch (error) {
+    logger.error('Failed to fetch dashboard audit summary:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch summary' });
+  }
+});
+
+router.get('/dashboard-audit/export', isAuthenticated, (req, res) => {
+  try {
+    const { userId, guildId, actionType, search, success, startDate, endDate, format } = req.query;
+
+    const logs = db.getDashboardAuditLogs({
+      userId: userId as string,
+      guildId: guildId as string,
+      actionType: actionType as string,
+      search: search as string,
+      success: success === 'true' ? true : success === 'false' ? false : undefined,
+      limit: 10000,
+      offset: 0,
+      startDate: startDate ? parseInt(startDate as string) : undefined,
+      endDate: endDate ? parseInt(endDate as string) : undefined
+    });
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.json"`);
+      res.json(logs);
+    } else {
+      const csv = [
+        ['Time', 'User', 'User ID', 'Action', 'Guild', 'Guild ID', 'IP Address', 'Method', 'Resource', 'Success', 'Error'].join(','),
+        ...logs.map((log: any) => [
+          new Date(log.timestamp * 1000).toISOString(),
+          `"${log.username}#${log.discriminator}"`,
+          log.user_id,
+          log.action_type,
+          `"${log.guild_name || 'N/A'}"`,
+          log.guild_id || 'N/A',
+          log.ip_address || 'N/A',
+          log.method || 'N/A',
+          `"${log.resource || 'N/A'}"`,
+          log.success ? 'Yes' : 'No',
+          `"${log.error_message || ''}"`
+        ].join(','))
+      ].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.csv"`);
+      res.send(csv);
+    }
+  } catch (error) {
+    logger.error('Failed to export audit logs:', error);
+    res.status(500).json({ success: false, error: 'Failed to export audit logs' });
+  }
+});
+
+router.get('/user/settings', isAuthenticated, (req, res) => {
+  try {
+    const user = req.user as any;
+    const settings = db.getDashboardUserSettings(user.id);
+
+    if (!settings) {
+      db.createOrUpdateDashboardUserSettings(user.id, user.username, user.discriminator || '0');
+      const newSettings = db.getDashboardUserSettings(user.id);
+      return res.json({ success: true, data: newSettings });
+    }
+
+    res.json({ success: true, data: settings });
+  } catch (error) {
+    logger.error('Failed to fetch user settings:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch user settings' });
+  }
+});
+
+router.patch('/user/settings', isAuthenticated, (req, res) => {
+  try {
+    const user = req.user as any;
+    const { email_notifications, security_alerts, session_timeout, theme } = req.body;
+
+    db.createOrUpdateDashboardUserSettings(user.id, user.username, user.discriminator || '0', {
+      email_notifications,
+      security_alerts,
+      session_timeout,
+      theme
+    });
+
+    const updated = db.getDashboardUserSettings(user.id);
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    logger.error('Failed to update user settings:', error);
+    res.status(500).json({ success: false, error: 'Failed to update user settings' });
+  }
+});
+
+router.get('/user/sessions', isAuthenticated, (req, res) => {
+  try {
+    const user = req.user as any;
+    const sessions = db.getDashboardSessions(user.id);
+
+    res.json({ success: true, data: sessions });
+  } catch (error) {
+    logger.error('Failed to fetch sessions:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch sessions' });
+  }
+});
+
+router.delete('/user/sessions/:sessionId', isAuthenticated, (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    db.deleteDashboardSession(sessionId);
+
+    res.json({ success: true, message: 'Session terminated' });
+  } catch (error) {
+    logger.error('Failed to delete session:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete session' });
+  }
+});
+
+router.delete('/user/sessions', isAuthenticated, (req, res) => {
+  try {
+    const user = req.user as any;
+    db.deleteAllDashboardSessions(user.id);
+
+    res.json({ success: true, message: 'All sessions terminated' });
+  } catch (error) {
+    logger.error('Failed to delete all sessions:', error);
+    res.status(500).json({ success: false, error: 'Failed to delete all sessions' });
   }
 });
 

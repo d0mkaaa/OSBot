@@ -24,9 +24,9 @@ data/
 *.sqlite
 *.sqlite3
 
-# Lock files
+# Lock files (keep package-lock.json for npm)
 bun.lockb
-package-lock.json
+bun.lock
 yarn.lock
 pnpm-lock.yaml
 

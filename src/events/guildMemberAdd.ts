@@ -4,6 +4,9 @@ import { logger } from '../utils/logger.js';
 import { DatabaseManager } from '../database/Database.js';
 import { antiRaidManager } from '../utils/antiraid.js';
 import { buildCustomEmbed } from '../utils/embedBuilder.js';
+import { AnalyticsTracker } from '../utils/analytics-tracker.js';
+import { accountAgeChecker } from '../utils/account-age-checker.js';
+import { altDetector } from '../utils/alt-detector.js';
 
 const event: BotEvent = {
   name: Events.GuildMemberAdd,
@@ -12,9 +15,13 @@ const event: BotEvent = {
     logger.info(`New member joined: ${member.user.tag} in ${member.guild.name}`);
 
     const db = DatabaseManager.getInstance();
+    const analytics = AnalyticsTracker.getInstance();
+
     db.createGuild(member.guild.id);
     db.createUser(member.user.id, member.user.tag);
     db.createGuildMember(member.guild.id, member.user.id);
+
+    analytics.trackMemberJoin(member.guild.id);
 
     try {
       const newInvites = await member.guild.invites.fetch();
@@ -43,6 +50,75 @@ const event: BotEvent = {
     }
 
     await antiRaidManager.checkMemberJoin(member);
+
+    const automodSettings = db.getAutomodSettings(member.guild.id) as any;
+
+    if (automodSettings?.account_age_enabled) {
+      const minDays = automodSettings.account_age_min_days || 7;
+      const ageResult = accountAgeChecker.checkMember(member, minDays);
+
+      if (!ageResult.isAllowed) {
+        const action = automodSettings.account_age_action || 'kick';
+
+        logger.info(`Account age check failed for ${member.user.tag} in ${member.guild.name}: ${ageResult.accountAgeDays} days (required: ${minDays})`);
+
+        try {
+          await accountAgeChecker.sendAccountAgeDM(member, minDays, ageResult.accountAgeDays);
+        } catch (error) {
+          logger.warn('Could not DM user about account age requirement');
+        }
+
+        if (action === 'kick') {
+          await member.kick(`Account age requirement: ${minDays} days (account: ${ageResult.accountAgeDays} days)`);
+        } else if (action === 'ban') {
+          await member.ban({ reason: `Account age requirement: ${minDays} days (account: ${ageResult.accountAgeDays} days)` });
+        }
+
+        return;
+      }
+    }
+
+    if (automodSettings?.alt_detection_enabled) {
+      const sensitivity = automodSettings.alt_detection_sensitivity || 3;
+      const detectionResult = await altDetector.checkMember(member, sensitivity);
+
+      if (detectionResult.isSuspicious) {
+        const guildConfig = db.getGuild(member.guild.id) as any;
+        const logChannel = guildConfig?.mod_log_channel_id || guildConfig?.audit_log_channel_id;
+
+        if (logChannel) {
+          const channel = await member.guild.channels.fetch(logChannel).catch(() => null) as TextChannel | null;
+          if (channel?.isTextBased()) {
+            const embed = new EmbedBuilder()
+              .setColor(detectionResult.riskLevel === 'critical' ? 0xFF0000 : detectionResult.riskLevel === 'high' ? 0xFF6600 : 0xFFCC00)
+              .setTitle('⚠️ Suspicious Account Detected')
+              .setDescription(`**${member.user.tag}** has been flagged by alt detection`)
+              .addFields(
+                { name: 'User', value: `${member} (${member.id})`, inline: true },
+                { name: 'Risk Level', value: detectionResult.riskLevel.toUpperCase(), inline: true },
+                { name: 'Score', value: `${detectionResult.score}/100`, inline: true },
+                { name: 'Account Age', value: `${detectionResult.details.accountAgeDays} days`, inline: true },
+                { name: 'Default Avatar', value: detectionResult.details.hasDefaultAvatar ? 'Yes' : 'No', inline: true },
+                { name: 'Flags', value: detectionResult.flags.join(', ') || 'None', inline: false }
+              )
+              .setThumbnail(member.user.displayAvatarURL())
+              .setTimestamp();
+
+            await channel.send({ embeds: [embed] });
+          }
+        }
+
+        const action = automodSettings.alt_detection_action || 'warn';
+
+        if (action === 'kick' && detectionResult.riskLevel === 'critical') {
+          await member.kick(`Suspicious account detected (score: ${detectionResult.score})`);
+          return;
+        } else if (action === 'ban' && detectionResult.riskLevel === 'critical') {
+          await member.ban({ reason: `Suspicious account detected (score: ${detectionResult.score})` });
+          return;
+        }
+      }
+    }
 
     const guildData = db.getGuild(member.guild.id) as any;
 
