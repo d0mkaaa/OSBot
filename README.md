@@ -1,6 +1,6 @@
-# OSBot - Modern Discord Bot
+# OSBot
 
-A feature-rich Discord bot built with TypeScript, discord.js v14, and Node.js. Includes moderation, music, leveling, utility commands, web dashboard, and comprehensive multi-language support.
+A Discord bot built with TypeScript, discord.js v14, and Node.js. Moderation, music, leveling, utility commands, a web dashboard, and i18n support (English, Spanish, French).
 
 ## Quick Start
 
@@ -64,7 +64,7 @@ npm run dev
 - Supported: English (complete), Spanish, French
 - Per-guild locale settings
 - Translation key structure: `commands.{name}.{key}`
-- Full i18n integration throughout codebase
+- i18n integration throughout the codebase
 
 ## Tech Stack
 
@@ -230,7 +230,7 @@ await interaction.reply(t('commands.mycommand.success', locale, { user: 'John' }
 
 3. Copy to other locales (`es.json`, `fr.json`) and translate
 
-## Security Features
+## Security
 
 - Input sanitization and validation
 - SQL injection prevention (prepared statements)
